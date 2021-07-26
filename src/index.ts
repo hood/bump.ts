@@ -53,33 +53,6 @@ function removeItemFromCell(
   return true;
 }
 
-function getDictItemsInCellRect(
-  self: World,
-  cl: number,
-  ct: number,
-  cw: number,
-  ch: number
-): { [itemID: string]: boolean } {
-  let items_dict: { [itemID: string]: boolean } = {};
-
-  for (let cy = ct; cy < ct + ch - 1; cy++) {
-    let row = self.rows[cy];
-
-    if (row) {
-      for (let cx = cl; cx < cl + cw - 1; cx++) {
-        let cell = row[cx];
-
-        if (cell?.itemCount > 0)
-          // no cell.itemCount > 1 because tunneling
-          for (const itemID of Object.keys(cell.items))
-            items_dict[itemID] = true;
-      }
-    }
-  }
-
-  return items_dict;
-}
-
 function getCellsTouchedBySegment(
   self: World,
   x1: number,
@@ -231,16 +204,18 @@ export class World {
     return response;
   }
 
+  // TODO: Fiure out why this returns N Collisions for N items in the original bump
   project(
-    itemID: string,
+    itemID: string | null,
     x: number,
     y: number,
     w: number,
     h: number,
-    goalX: number,
-    goalY: number,
-    filter: any
-  ): [any[], number] {
+    goalX?: number,
+    goalY?: number,
+    filter?: any
+  ): any[] {
+    // TODO: Should return `Collision[]`
     assertIsRect(x, y, w, h);
 
     goalX = goalX || x;
@@ -248,14 +223,13 @@ export class World {
     filter = filter || defaultFilter;
 
     let collisions: any[] = [];
-    let len: number = 0;
 
     let visited: { [itemID: string]: boolean } = {};
 
     if (itemID) visited[itemID] = true;
 
-    //This could probably be done with less cells using a polygon raster over the cells instead of a
-    //bounding rect of the whole movement.Conditional to building a queryPolygon method
+    // This could probably be done with less cells using a polygon raster over the cells instead of a
+    // bounding rect of the whole movement.Conditional to building a queryPolygon method
     let tl: number = Math.min(goalX, x);
     let tt: number = Math.min(goalY, y);
 
@@ -267,18 +241,20 @@ export class World {
 
     let [cl, ct, cw, ch] = grid_toCellRect(this.cellSize, tl, tt, tw, th);
 
-    let dictItemsInCellRect = getDictItemsInCellRect(this, cl, ct, cw, ch);
+    let dictItemsInCellRect: {
+      [itemID: string]: boolean;
+    } = this.getDictItemsInCellRect(cl, ct, cw, ch);
 
     for (const other of Object.keys(dictItemsInCellRect)) {
       if (!visited[other]) {
         visited[other] = true;
 
-        let responseName = filter(itemID, other);
+        const responseName: string = filter(itemID, other);
 
         if (responseName) {
           let [ox, oy, ow, oh] = this.getRect(other);
 
-          let col: any = rect_detectCollision(
+          let collision: any = rect_detectCollision(
             x,
             y,
             w,
@@ -291,12 +267,12 @@ export class World {
             goalY
           );
 
-          if (col) {
-            col.other = other;
-            col.item = itemID;
-            col.type = responseName;
+          if (collision) {
+            collision.other = other;
+            collision.item = itemID;
+            collision.type = responseName;
 
-            collisions[len++] = col;
+            collisions.push(collision);
           }
         }
       }
@@ -304,7 +280,7 @@ export class World {
 
     tableSort(collisions, sortByTiAndDistance);
 
-    return [collisions, len];
+    return collisions;
   }
 
   countCells(): number {
@@ -361,6 +337,32 @@ export class World {
     return [rect.x, rect.y, rect.w, rect.h];
   }
 
+  getDictItemsInCellRect(
+    cl: number,
+    ct: number,
+    cw: number,
+    ch: number
+  ): { [itemID: string]: boolean } {
+    let items_dict: { [itemID: string]: boolean } = {};
+
+    for (let cy = ct; cy < ct + ch - 1; cy++) {
+      let row = this.rows[cy];
+
+      if (row) {
+        for (let cx = cl; cx < cl + cw - 1; cx++) {
+          let cell = row[cx];
+
+          if (cell?.itemCount > 0)
+            // no cell.itemCount > 1 because tunneling
+            for (const itemID of Object.keys(cell.items))
+              items_dict[itemID] = true;
+        }
+      }
+    }
+
+    return items_dict;
+  }
+
   toWorld(cx: number, cy: number): [number, number] {
     return grid_toWorld(this.cellSize, cx, cy);
   }
@@ -380,7 +382,7 @@ export class World {
     assertIsRect(x, y, w, h);
 
     let [cl, ct, cw, ch] = grid_toCellRect(this.cellSize, x, y, w, h);
-    let dictItemsInCellRect = getDictItemsInCellRect(this, cl, ct, cw, ch);
+    let dictItemsInCellRect = this.getDictItemsInCellRect(cl, ct, cw, ch);
 
     let items: any[] = [];
     let len = 0;
@@ -402,7 +404,7 @@ export class World {
 
   queryPoint(x: number, y: number, filter: any): [any[], number] {
     let [cx, cy] = this.toCell(x, y);
-    let dictItemsInCellRect = getDictItemsInCellRect(this, cx, cy, 1, 1);
+    let dictItemsInCellRect = this.getDictItemsInCellRect(cx, cy, 1, 1);
 
     let items: any[] = [];
     let len = 0;
@@ -586,12 +588,11 @@ export class World {
     const visitedFilter = (itm: any, other: any) =>
       !!visited[other] ? false : filter(itm, other);
 
-    let cols: any[] = [];
-    let len = 0;
+    let detectedCollisions: any[] = [];
 
     let [x, y, w, h] = this.getRect(itemID);
 
-    let [projected_cols, projected_len] = this.project(
+    let projectedCollisions = this.project(
       itemID,
       x,
       y,
@@ -602,19 +603,19 @@ export class World {
       visitedFilter
     );
 
-    while (projected_len > 0) {
-      let col: any = projected_cols[1];
+    while (projectedCollisions.length > 0) {
+      let collision: any = projectedCollisions[1];
 
-      cols[len++] = col;
+      detectedCollisions.push(collision);
 
-      visited[col.other] = true;
+      visited[collision.other] = true;
 
-      let response = this.getResponseByName(col.type);
+      let response = this.getResponseByName(collision.type);
 
       // TODO: What if `response` is not defined?
-      const [_goalX, _goalY, _projected_cols, _projected_len] = response(
+      const [_goalX, _goalY, _projectedCollisions] = response(
         this,
-        col,
+        collision,
         x,
         y,
         w,
@@ -626,11 +627,10 @@ export class World {
 
       goalX = _goalX;
       goalY = _goalY;
-      projected_cols = _projected_cols;
-      projected_len = _projected_len;
+      projectedCollisions = _projectedCollisions;
     }
 
-    return [goalX, goalY, cols, len];
+    return [goalX, goalY, detectedCollisions, detectedCollisions.length];
   }
 }
 
