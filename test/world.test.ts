@@ -94,13 +94,13 @@ describe('Bump world', () => {
       expect(world.project('TEST_ITEM', 1, 2, 3, 4)).toEqual([]);
     });
 
-    it.skip('TODO: should return a list of collisions when the world is not empty', () => {
+    it('TODO: should return a list of collisions when the world is not empty', () => {
       const world = Bump.newWorld(64);
 
       world.add('TEST_ITEM1', 0, 0, 10, 10);
       world.add('TEST_ITEM2', 14, 16, 10, 10);
 
-      expect(world.project('TEST_ITEM1', 4, 6, 10, 10)).toEqual([]);
+      expect(world.project('-', 4, 6, 10, 10).length).toEqual(1);
     });
 
     // TODO: Why does it return `1` collision in the official tests (ref.: https://github.com/kikito/bump.lua/blob/7cae5d1ef796068a185d8e2d0c632a030ac8c148/spec/World_spec.lua#L116)
@@ -110,7 +110,7 @@ describe('Bump world', () => {
 
       world.add('TEST_ITEM', 0, 0, 2, 2);
 
-      expect(world.project('', 1, 1, 2, 2, 1, 1).length).toEqual(1);
+      expect(world.project(null, 1, 1, 2, 2, 1, 1).length).toEqual(1);
     });
 
     // TODO: Figure out TS equivalent of world:move({})
