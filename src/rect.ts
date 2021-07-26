@@ -291,6 +291,7 @@ export function rect_detectCollision(
       ty = y1 + py;
     } else {
       //intersecting and moving - move in the opposite direction
+      // @ts-ignore
       let [ti1, _, _nx, _ny] = rect_getSegmentIntersectionIndices(
         x,
         y,
@@ -313,12 +314,15 @@ export function rect_detectCollision(
     }
   //tunnel
   else {
+    // @ts-ignore
     tx = x1 + dx * ti;
+    // @ts-ignore
     ty = y1 + dy * ti;
   }
 
   return {
     overlaps: overlaps!,
+    // @ts-ignore
     ti,
     move: { x: dx, y: dy },
     normal: { x: nx as number, y: ny as number },

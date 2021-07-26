@@ -28,6 +28,13 @@ function defaultFilter(): string {
 
 //Private functions and methods
 
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 function sortByWeight(a: any, b: any): boolean {
   return a.weight < b.weight;
 }
@@ -252,17 +259,17 @@ export class World {
         const responseName: string = filter(itemID, other);
 
         if (responseName) {
-          let [ox, oy, ow, oh] = this.getRect(other);
+          let otherRect = this.getRect(other);
 
           let collision: any = rect_detectCollision(
             x,
             y,
             w,
             h,
-            ox,
-            oy,
-            ow,
-            oh,
+            otherRect.x,
+            otherRect.y,
+            otherRect.w,
+            otherRect.h,
             goalX,
             goalY
           );
@@ -286,7 +293,7 @@ export class World {
   countCells(): number {
     let count = 0;
 
-    for (const row of this.rows.filter(row => !!row))
+    for (const row of this.rows.filter((row) => !!row))
       for (const _col of row) if (!!_col) count++;
 
     return count;
@@ -326,7 +333,7 @@ export class World {
     }
   }
 
-  getRect(itemID: string): [number, number, number, number] {
+  getRect(itemID: string): Rect {
     let rect = this.rects[itemID];
 
     if (!rect)
@@ -334,7 +341,12 @@ export class World {
         `Item "${itemID}" must be added to the world before getting its rect. Use world:add(item, x,y,w,h) to add it first.`
       );
 
-    return [rect.x, rect.y, rect.w, rect.h];
+    return {
+      x: rect.x,
+      y: rect.y,
+      w: rect.w,
+      h: rect.h,
+    };
   }
 
   getDictItemsInCellRect(
@@ -498,11 +510,17 @@ export class World {
   }
 
   remove(itemID: string): void {
-    let [x, y, w, h] = this.getRect(itemID);
+    let itemRect = this.getRect(itemID);
 
     this.rects[itemID] = null;
 
-    let [cl, ct, cw, ch] = grid_toCellRect(this.cellSize, x, y, w, h);
+    let [cl, ct, cw, ch] = grid_toCellRect(
+      this.cellSize,
+      itemRect.x,
+      itemRect.y,
+      itemRect.w,
+      itemRect.h
+    );
 
     for (let cy = ct; cy < ct + ch - 1; cy++)
       for (let cx = cl; cx < cl + cw - 1; cx++)
@@ -510,15 +528,27 @@ export class World {
   }
 
   update(itemID: string, x2: number, y2: number, w2?: any, h2?: number): void {
-    let [x1, y1, w1, h1] = this.getRect(itemID);
+    let itemRect = this.getRect(itemID);
 
-    w2 = w2 || w1;
-    h2 = h2 || h1;
+    w2 = w2 || itemRect.w;
+    h2 = h2 || itemRect.h;
 
     assertIsRect(x2, y2, w2, h2);
 
-    if (x1 != x2 || y1 != y2 || w1 != w2 || h1 != h2) {
-      let [cl1, ct1, cw1, ch1] = grid_toCellRect(this.cellSize, x1, y1, w1, h1);
+    if (
+      itemRect.x != x2 ||
+      itemRect.y != y2 ||
+      itemRect.w != w2 ||
+      itemRect.h != h2
+    ) {
+      let [cl1, ct1, cw1, ch1] = grid_toCellRect(
+        this.cellSize,
+        itemRect.x,
+        itemRect.y,
+        itemRect.w,
+        itemRect.h
+      );
+
       let [cl2, ct2, cw2, ch2] = grid_toCellRect(this.cellSize, x2, y2, w2, h2);
 
       if (cl1 != cl2 || ct1 != ct2 || cw1 != cw2 || ch1 != ch2) {
@@ -561,8 +591,8 @@ export class World {
     goalX: number,
     goalY: number,
     filter?: any
-  ): [number, number, number, number] {
-    let [actualX, actualY, cols, len] = this.check(
+  ): [number, number, any[]] {
+    let [actualX, actualY, collisions] = this.check(
       itemID,
       goalX,
       goalY,
@@ -571,7 +601,7 @@ export class World {
 
     this.update(itemID, actualX, actualY);
 
-    return [actualX, actualY, cols, len];
+    return [actualX, actualY, collisions];
   }
 
   check(
@@ -579,7 +609,7 @@ export class World {
     goalX: number,
     goalY: number,
     filter?: any
-  ): [number, number, any, number] {
+  ): [number, number, any[]] {
     filter = filter || defaultFilter;
 
     let visited: { [itemID: string]: boolean } = {};
@@ -590,14 +620,14 @@ export class World {
 
     let detectedCollisions: any[] = [];
 
-    let [x, y, w, h] = this.getRect(itemID);
+    let itemRect = this.getRect(itemID);
 
     let projectedCollisions = this.project(
       itemID,
-      x,
-      y,
-      w,
-      h,
+      itemRect.x,
+      itemRect.y,
+      itemRect.w,
+      itemRect.h,
       goalX,
       goalY,
       visitedFilter
@@ -616,10 +646,10 @@ export class World {
       const [_goalX, _goalY, _projectedCollisions] = response(
         this,
         collision,
-        x,
-        y,
-        w,
-        h,
+        itemRect.x,
+        itemRect.y,
+        itemRect.w,
+        itemRect.h,
         goalX,
         goalY,
         visitedFilter
@@ -630,7 +660,7 @@ export class World {
       projectedCollisions = _projectedCollisions;
     }
 
-    return [goalX, goalY, detectedCollisions, detectedCollisions.length];
+    return [goalX, goalY, detectedCollisions];
   }
 }
 

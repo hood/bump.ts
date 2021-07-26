@@ -1,7 +1,7 @@
 import Bump from '../src/index';
 
 function collect(list: any[], fieldName: string): any[] {
-  return list.map(item => item[fieldName]);
+  return list.map((item) => item[fieldName]);
 }
 
 describe('Bump world', () => {
@@ -54,7 +54,12 @@ describe('Bump world', () => {
 
       world.update('TEST_ITEM', 40, 40, 20, 20);
 
-      expect(world.getRect(worldItemID)).toEqual([40, 40, 20, 20]);
+      expect(world.getRect(worldItemID)).toEqual({
+        x: 40,
+        y: 40,
+        w: 20,
+        h: 20,
+      });
     });
 
     it('should use previous width and height if not provided', () => {
@@ -64,7 +69,7 @@ describe('Bump world', () => {
 
       world.update(worldItemID, 5, 5);
 
-      expect(world.getRect(worldItemID)).toEqual([5, 5, 10, 10]);
+      expect(world.getRect(worldItemID)).toEqual({ x: 5, y: 5, w: 10, h: 10 });
     });
 
     it('should not invoke `remove` and `add` when an item stays in the same group of cells', () => {
@@ -89,13 +94,13 @@ describe('Bump world', () => {
       expect(world.project('TEST_ITEM', 1, 2, 3, 4)).toEqual([]);
     });
 
-    it.skip('FIXME: should return a list of collisions when the world is not empty', () => {
+    it.skip('TODO: should return a list of collisions when the world is not empty', () => {
       const world = Bump.newWorld(64);
 
       world.add('TEST_ITEM1', 0, 0, 10, 10);
       world.add('TEST_ITEM2', 14, 16, 10, 10);
 
-      expect(world.project('-', 4, 6, 10, 10)).toEqual([[], 1]);
+      expect(world.project('TEST_ITEM1', 4, 6, 10, 10)).toEqual([]);
     });
 
     // TODO: Why does it return `1` collision in the official tests (ref.: https://github.com/kikito/bump.lua/blob/7cae5d1ef796068a185d8e2d0c632a030ac8c148/spec/World_spec.lua#L116)
@@ -158,5 +163,32 @@ describe('Bump world', () => {
 
   // describe('countItems', () => {});
 
-  describe('move', () => {});
+  describe('move', () => {
+    it('should move an item and return no collisions when there are no collisions', () => {
+      const world = Bump.newWorld(64);
+
+      const itemID = world.add('TEST_ITEM', 0, 0, 1, 1);
+
+      expect(world.move(itemID, 1, 1)).toEqual([1, 1, []]);
+    });
+
+    it('should return a collision with the first item a moved item touches', () => {
+      const world = Bump.newWorld(64);
+
+      const itemID = world.add('TEST_ITEM1', 0, 0, 1, 1);
+
+      world.add('TEST_ITEM2', 0, 2, 1, 1);
+      world.add('TEST_ITEM3', 0, 3, 1, 1);
+
+      // @ts-ignore
+      const [x, y, cols, len] = world.move(itemID, 0, 5, () => 'touch');
+
+      expect(x).toEqual(0);
+      expect(y).toEqual(1);
+      expect(len).toEqual(1);
+      expect(collect(cols, 'other')).toEqual(['TEST_ITEM2']);
+      expect(collect(cols, 'type')).toEqual(['touch']);
+      expect(world.getRect(itemID)).toEqual([0, 1, 1, 1]);
+    });
+  });
 });
