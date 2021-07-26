@@ -39,27 +39,6 @@ function sortByWeight(a: any, b: any): boolean {
   return a.weight < b.weight;
 }
 
-function removeItemFromCell(
-  self: World,
-  itemID: string,
-  cx: number,
-  cy: number
-): boolean {
-  let row = self['rows'][cy];
-
-  if (!row?.[cx]?.['items']?.[itemID]) return false;
-
-  let cell = row[cx];
-
-  cell.items[itemID] = null;
-
-  cell.itemCount = cell.itemCount - 1;
-
-  if (cell.itemCount == 0) self['nonEmptyCells'][cell] = null;
-
-  return true;
-}
-
 function getCellsTouchedBySegment(
   self: World,
   x1: number,
@@ -375,6 +354,22 @@ export class World {
     return items_dict;
   }
 
+  private removeItemFromCell(itemID: string, cx: number, cy: number): boolean {
+    let row = this.rows[cy];
+
+    if (!row?.[cx]?.['items']?.[itemID]) return false;
+
+    let cell = row[cx];
+
+    cell.items[itemID] = null;
+
+    cell.itemCount--;
+
+    if (cell.itemCount === 0) this.nonEmptyCells[cell] = null;
+
+    return true;
+  }
+
   toWorld(cx: number, cy: number): [number, number] {
     return grid_toWorld(this.cellSize, cx, cy);
   }
@@ -522,9 +517,9 @@ export class World {
       itemRect.h
     );
 
-    for (let cy = ct; cy < ct + ch - 1; cy++)
-      for (let cx = cl; cx < cl + cw - 1; cx++)
-        removeItemFromCell(this, itemID, cx, cy);
+    for (let cy = ct; cy < ct + ch; cy++)
+      for (let cx = cl; cx < cl + cw; cx++)
+        this.removeItemFromCell(itemID, cx, cy);
   }
 
   update(itemID: string, x2: number, y2: number, w2?: any, h2?: number): void {
@@ -565,7 +560,7 @@ export class World {
 
           for (let cx = cl1; cx <= cr1; cy++)
             if (cyOut || cx < cl2 || cx > cr2)
-              removeItemFromCell(this, itemID, cx, cy);
+              this.removeItemFromCell(itemID, cx, cy);
         }
 
         for (let cy = ct2; cy <= cb2; cy++) {
