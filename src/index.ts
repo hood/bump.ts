@@ -282,13 +282,13 @@ export class World {
     return !!this.rects[item];
   }
 
-  getItems() {
+  getItems(): any[] {
     let items: any[] = [];
     let len = 0;
 
     for (const rect of Object.keys(this.rects)) items[len++] = this.rects[rect];
 
-    return [items, len];
+    return items;
   }
 
   countItems(): number {
@@ -600,17 +600,17 @@ export class World {
     goalY: number,
     filter?: any
   ): { x: number; y: number; collisions: any[] } {
-    filter = filter || defaultFilter;
+    const checkFilter: any = filter || defaultFilter;
 
     let visited: { [itemID: string]: boolean } = {};
     visited[itemID] = true;
 
     const visitedFilter = (itm: any, other: any) =>
-      !!visited[other] ? false : filter(itm, other);
+      !!visited[other] ? false : checkFilter(itm, other);
 
     let detectedCollisions: any[] = [];
 
-    let itemRect = this.getRect(itemID);
+    let itemRect: Rect = this.getRect(itemID);
 
     let projectedCollisions = this.project(
       itemID,
@@ -623,8 +623,8 @@ export class World {
       visitedFilter
     );
 
-    while (projectedCollisions.length > 0) {
-      let collision: any = projectedCollisions[1];
+    while (projectedCollisions?.length > 0) {
+      let collision: any = projectedCollisions[0];
 
       detectedCollisions.push(collision);
 
@@ -633,7 +633,7 @@ export class World {
       let response = this.getResponseByName(collision.type);
 
       // TODO: What if `response` is not defined?
-      const [_goalX, _goalY, _projectedCollisions] = response(
+      const { x, y, collisions } = response(
         this,
         collision,
         itemRect.x,
@@ -645,9 +645,9 @@ export class World {
         visitedFilter
       );
 
-      goalX = _goalX;
-      goalY = _goalY;
-      projectedCollisions = _projectedCollisions;
+      goalX = x;
+      goalY = y;
+      projectedCollisions = collisions;
     }
 
     return { x: goalX, y: goalY, collisions: detectedCollisions };

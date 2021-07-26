@@ -187,7 +187,7 @@ describe('Bump world', () => {
       expect(y).toEqual(1);
       expect(collect(collisions, 'other')).toEqual(['TEST_ITEM2']);
       expect(collect(collisions, 'type')).toEqual(['touch']);
-      expect(world.getRect(itemID)).toEqual([0, 1, 1, 1]);
+      expect(world.getRect(itemID)).toEqual({ x: 0, y: 1, w: 1, h: 1 });
     });
   });
 });

@@ -13,7 +13,7 @@ import { World } from '../../index';
 // ) => [number, number, any, number];
 
 export function touch(
-  _world: any,
+  _world: World,
   col: any,
   _x: number,
   _y: number,
@@ -22,8 +22,8 @@ export function touch(
   _goalX: number,
   _goalY: number,
   _filter: any
-): [number, number, any, number] {
-  return [col.touch.x, col.touch.y, {}, 0];
+): { x: number; y: number; collisions: any[] } {
+  return { x: col.touch.x, y: col.touch.y, collisions: [] };
 }
 
 export function cross(
@@ -36,9 +36,10 @@ export function cross(
   goalX: number,
   goalY: number,
   filter: any
-): [number, number, any, number] {
-  const [cols, len] = world.project(col.item, x, y, w, h, goalX, goalY, filter);
-  return [goalX, goalY, cols, len];
+): { x: number; y: number; collisions: any[] } {
+  const collisions = world.project(col.item, x, y, w, h, goalX, goalY, filter);
+
+  return { x: goalX, y: goalY, collisions };
 }
 
 export function slide(
@@ -51,7 +52,7 @@ export function slide(
   goalX: number,
   goalY: number,
   filter: any
-): [number, number, any, number] {
+): { x: number; y: number; collisions: any[] } {
   goalX = goalX || x;
   goalY = goalY || y;
 
@@ -66,9 +67,9 @@ export function slide(
   x = tch.x;
   y = tch.y;
 
-  let [cols, len] = world.project(col.item, x, y, w, h, goalX, goalY, filter);
+  let cols = world.project(col.item, x, y, w, h, goalX, goalY, filter);
 
-  return [goalX, goalY, cols, len];
+  return { x: goalX, y: goalY, collisions: cols };
 }
 
 export function bounce(
@@ -81,7 +82,7 @@ export function bounce(
   goalX: number,
   goalY: number,
   filter: any
-): [number, number, any, number] {
+): { x: number; y: number; collisions: any[] } {
   goalX = goalX || x;
   goalY = goalY || y;
 
@@ -108,7 +109,7 @@ export function bounce(
   goalX = bx;
   goalY = by;
 
-  const [cols, len] = world.project(col.item, x, y, w, h, goalX, goalY, filter);
+  const cols = world.project(col.item, x, y, w, h, goalX, goalY, filter);
 
-  return [goalX, goalY, cols, len];
+  return { x: goalX, y: goalY, collisions: cols };
 }
