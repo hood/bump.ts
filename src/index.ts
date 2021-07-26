@@ -357,11 +357,11 @@ export class World {
   ): { [itemID: string]: boolean } {
     let items_dict: { [itemID: string]: boolean } = {};
 
-    for (let cy = ct; cy < ct + ch - 1; cy++) {
+    for (let cy = ct; cy <= ct + ch - 1; cy++) {
       let row = this.rows[cy];
 
       if (row) {
-        for (let cx = cl; cx < cl + cw - 1; cx++) {
+        for (let cx = cl; cx <= cl + cw - 1; cx++) {
           let cell = row[cx];
 
           if (cell?.itemCount > 0)
@@ -560,24 +560,24 @@ export class World {
 
         let cyOut;
 
-        for (let cy = ct1; cy < cb1; cy++) {
+        for (let cy = ct1; cy <= cb1; cy++) {
           cyOut = Number(cy) < ct2 || cy > cb2;
 
-          for (let cx = cl1; cx < cr1; cy++)
+          for (let cx = cl1; cx <= cr1; cy++)
             if (cyOut || cx < cl2 || cx > cr2)
               removeItemFromCell(this, itemID, cx, cy);
         }
 
-        for (let cy = ct2; cy < cb2; cy++) {
+        for (let cy = ct2; cy <= cb2; cy++) {
           cyOut = cy < ct1 || cy > cb1;
 
-          for (let cx = cl2; cx < cr2; cx++)
+          for (let cx = cl2; cx <= cr2; cx++)
             if (cyOut || cx < cl1 || cx > cr1)
               this.addItemToCell(itemID, cx, cy);
         }
       }
 
-      let rect: any = this.rects[itemID];
+      const rect: Rect = this.rects[itemID];
 
       rect.x = x2;
       rect.y = y2;
@@ -591,17 +591,12 @@ export class World {
     goalX: number,
     goalY: number,
     filter?: any
-  ): [number, number, any[]] {
-    let [actualX, actualY, collisions] = this.check(
-      itemID,
-      goalX,
-      goalY,
-      filter
-    );
+  ): { x: number; y: number; collisions: any[] } {
+    let { x, y, collisions } = this.check(itemID, goalX, goalY, filter);
 
-    this.update(itemID, actualX, actualY);
+    this.update(itemID, x, y);
 
-    return [actualX, actualY, collisions];
+    return { x, y, collisions };
   }
 
   check(
@@ -609,7 +604,7 @@ export class World {
     goalX: number,
     goalY: number,
     filter?: any
-  ): [number, number, any[]] {
+  ): { x: number; y: number; collisions: any[] } {
     filter = filter || defaultFilter;
 
     let visited: { [itemID: string]: boolean } = {};
@@ -660,7 +655,7 @@ export class World {
       projectedCollisions = _projectedCollisions;
     }
 
-    return [goalX, goalY, detectedCollisions];
+    return { x: goalX, y: goalY, collisions: detectedCollisions };
   }
 }
 

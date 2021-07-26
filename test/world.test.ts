@@ -169,7 +169,7 @@ describe('Bump world', () => {
 
       const itemID = world.add('TEST_ITEM', 0, 0, 1, 1);
 
-      expect(world.move(itemID, 1, 1)).toEqual([1, 1, []]);
+      expect(world.move(itemID, 1, 1)).toEqual({ x: 1, y: 1, collisions: [] });
     });
 
     it('should return a collision with the first item a moved item touches', () => {
@@ -181,13 +181,12 @@ describe('Bump world', () => {
       world.add('TEST_ITEM3', 0, 3, 1, 1);
 
       // @ts-ignore
-      const [x, y, cols, len] = world.move(itemID, 0, 5, () => 'touch');
+      const { x, y, collisions } = world.move(itemID, 0, 5, () => 'touch');
 
       expect(x).toEqual(0);
       expect(y).toEqual(1);
-      expect(len).toEqual(1);
-      expect(collect(cols, 'other')).toEqual(['TEST_ITEM2']);
-      expect(collect(cols, 'type')).toEqual(['touch']);
+      expect(collect(collisions, 'other')).toEqual(['TEST_ITEM2']);
+      expect(collect(collisions, 'type')).toEqual(['touch']);
       expect(world.getRect(itemID)).toEqual([0, 1, 1, 1]);
     });
   });
