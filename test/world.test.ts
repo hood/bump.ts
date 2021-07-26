@@ -94,7 +94,7 @@ describe('Bump world', () => {
       expect(world.project('TEST_ITEM', 1, 2, 3, 4)).toEqual([]);
     });
 
-    it('TODO: should return a list of collisions when the world is not empty', () => {
+    it('should return a list of collisions when the world is not empty', () => {
       const world = Bump.newWorld(64);
 
       world.add('TEST_ITEM1', 0, 0, 10, 10);
@@ -103,9 +103,7 @@ describe('Bump world', () => {
       expect(world.project('-', 4, 6, 10, 10).length).toEqual(1);
     });
 
-    // TODO: Why does it return `1` collision in the official tests (ref.: https://github.com/kikito/bump.lua/blob/7cae5d1ef796068a185d8e2d0c632a030ac8c148/spec/World_spec.lua#L116)
-    //  if there's a single item in the world? What should it collide with?
-    it.skip('FIXME: still handles intersections as before when next future X & Y are passed', () => {
+    it('still handles intersections as before when next future X & Y are passed', () => {
       const world = Bump.newWorld(64);
 
       world.add('TEST_ITEM', 0, 0, 2, 2);
