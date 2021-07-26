@@ -240,7 +240,6 @@ export class World {
         if (responseName) {
           let otherRect = this.getRect(other);
 
-          // TODO: This returns undefined
           let collision: any = rect_detectCollision(
             x,
             y,
@@ -265,7 +264,7 @@ export class World {
       }
     }
 
-    tableSort(collisions, sortByTiAndDistance).reverse();
+    tableSort(collisions, sortByTiAndDistance) /* .reverse() */;
 
     return collisions;
   }
@@ -273,7 +272,7 @@ export class World {
   countCells(): number {
     let count = 0;
 
-    for (const row of this.rows.filter((row) => !!row))
+    for (const row of this.rows.filter(row => !!row))
       for (const _col of row) if (!!_col) count++;
 
     return count;
@@ -624,7 +623,17 @@ export class World {
       visitedFilter
     );
 
-    while (projectedCollisions?.length > 0) {
+    // Current broken test prints otherRect = {h:2, w:1,x:0, y:2} i lua
+    require('console').dir(
+      {
+        projectedCollisions,
+      },
+      { depth: null }
+    );
+
+    let collisionsCounter = projectedCollisions?.length || 0;
+
+    while (collisionsCounter > 0) {
       let collision: any = projectedCollisions[0];
 
       detectedCollisions.push(collision);
@@ -646,9 +655,17 @@ export class World {
         visitedFilter
       );
 
+      // This prints once in TS and once in lua. Whilelen is 0 in lua
+      require('console').dir({
+        afterCols: collisions,
+        whillelen: projectedCollisions?.length,
+      });
+
       goalX = x;
       goalY = y;
       projectedCollisions = collisions;
+
+      collisionsCounter = collisions?.length || 0;
     }
 
     return { x: goalX, y: goalY, collisions: detectedCollisions };

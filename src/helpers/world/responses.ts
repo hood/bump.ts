@@ -83,33 +83,39 @@ export function bounce(
   goalY: number,
   filter: any
 ): { x: number; y: number; collisions: any[] } {
-  goalX = goalX || x;
-  goalY = goalY || y;
+  let _goalX: number = goalX || x;
+  let _goalY: number = goalY || y;
 
-  let [tch, move] = [col.touch, col.move];
-  let [tx, ty] = [tch.x, tch.y];
+  const { touch, move } = col;
 
-  let [bx, by] = [tx, ty];
+  let [tx, ty] = [touch.x, touch.y];
 
-  if (move.x != 0 || move.y != 0) {
-    let [bnx, bny] = [goalX - tx, goalY - ty];
+  let bx = tx;
+  let by = ty;
 
-    if (col.normal.x == 0) bny = -bny;
+  if (move.x !== 0 || move.y !== 0) {
+    let bnx = _goalX - tx;
+    let bny = _goalY - ty;
+
+    if (col.normal.x === 0) bny = -bny;
     else bnx = -bnx;
 
     bx = tx + bnx;
-    ty = ty + bny;
+    by = ty + bny;
   }
 
   col.bounce = { x: bx, y: by };
 
-  x = tch.x;
-  y = tch.y;
+  const collisions = world.project(
+    col.item,
+    touch.x,
+    touch.y,
+    w,
+    h,
+    bx,
+    by,
+    filter
+  );
 
-  goalX = bx;
-  goalY = by;
-
-  const cols = world.project(col.item, x, y, w, h, goalX, goalY, filter);
-
-  return { x: goalX, y: goalY, collisions: cols };
+  return { x: bx, y: by, collisions };
 }

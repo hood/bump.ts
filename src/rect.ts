@@ -64,7 +64,7 @@ export function rect_getSegmentIntersectionIndices(
       p = -dy;
       q = y1 - y;
     }
-    //// bottom
+    // bottom
     else {
       nx = 0;
       ny = 1;
@@ -194,7 +194,6 @@ export function rect_detectCollision(
   | {
       overlaps: boolean;
       ti: number;
-      item: string;
       move: {
         x: number;
         y: number;
@@ -253,10 +252,8 @@ export function rect_detectCollision(
       0,
       dx,
       dy,
-      // -Number.MAX_SAFE_INTEGER,
-      // Number.MAX_SAFE_INTEGER
-      -999999,
-      999999
+      -Number.MAX_SAFE_INTEGER,
+      Number.MAX_SAFE_INTEGER
     );
 
     // item tunnels into other
@@ -279,7 +276,7 @@ export function rect_detectCollision(
   let tx, ty;
 
   if (overlaps!)
-    if (dx == 0 && dy == 0) {
+    if (dx === 0 && dy === 0) {
       //intersecting and not moving - use minimum displacement vector
       let [px, py] = rect_getNearestCorner(x, y, w, h, 0, 0);
 
@@ -326,7 +323,6 @@ export function rect_detectCollision(
     overlaps: overlaps!,
     // @ts-ignore
     ti,
-    item: '-',
     move: { x: dx, y: dy },
     normal: { x: nx as number, y: ny as number },
     touch: { x: tx, y: ty },
