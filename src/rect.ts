@@ -12,6 +12,7 @@ export function rect_getNearestCorner(
   return [nearest(px, x, x + w), nearest(py, y, y + h)];
 }
 
+// TODO: THIS IS BROKEN RN
 // This is a generalized implementation of the liang-barsky algorithm, which also returns
 // the normals of the sides where the segment intersects.
 // Returns null if the segment never touches the rect
@@ -28,8 +29,8 @@ export function rect_getSegmentIntersectionIndices(
   ti1: number,
   ti2: number
 ): [number?, number?, number?, number?, number?, number?] {
-  ti1 = ti1 || 0;
-  ti2 = ti2 || 1;
+  let _ti1 = ti1 || 0;
+  let _ti2 = ti2 || 1;
 
   let dx: number = x2 - x1;
   let dy: number = y2 - y1;
@@ -53,7 +54,7 @@ export function rect_getSegmentIntersectionIndices(
     else if (side === 2) {
       nx = 1;
       ny = 0;
-      p = -dx;
+      p = dx;
       q = x + w - x1;
     }
     // top
@@ -71,7 +72,7 @@ export function rect_getSegmentIntersectionIndices(
       q = y + h - y1;
     }
 
-    if (p == 0) {
+    if (p === 0) {
       if (q <= 0)
         return [
           undefined,
@@ -85,7 +86,7 @@ export function rect_getSegmentIntersectionIndices(
       r = q / p;
 
       if (p < 0) {
-        if (r > ti2)
+        if (r > _ti2)
           return [
             undefined,
             undefined,
@@ -94,14 +95,14 @@ export function rect_getSegmentIntersectionIndices(
             undefined,
             undefined,
           ];
-        else if (r > ti1) {
-          ti1 = r;
+        else if (r > _ti1) {
+          _ti1 = r;
           nx1 = nx;
           ny1 = ny;
         }
       } // p > 0
       else {
-        if (r < ti1)
+        if (r < _ti1)
           return [
             undefined,
             undefined,
@@ -110,8 +111,8 @@ export function rect_getSegmentIntersectionIndices(
             undefined,
             undefined,
           ];
-        else if (r < ti2) {
-          ti2 = r;
+        else if (r < _ti2) {
+          _ti2 = r;
           nx2 = nx;
           ny2 = ny;
         }
@@ -119,7 +120,7 @@ export function rect_getSegmentIntersectionIndices(
     }
   }
 
-  return [ti1, ti2, nx1, ny1, nx2, ny2];
+  return [_ti1, _ti2, nx1, ny1, nx2, ny2];
 }
 
 // //Calculates the minkowsky difference between 2 rects, which is another rect
@@ -193,6 +194,7 @@ export function rect_detectCollision(
   | {
       overlaps: boolean;
       ti: number;
+      item: string;
       move: {
         x: number;
         y: number;
@@ -218,13 +220,12 @@ export function rect_detectCollision(
         h: number;
       };
     } {
-  goalX = goalX || x1;
-  goalY = goalY || y1;
+  const _goalX: number = goalX || x1;
+  const _goalY: number = goalY || y1;
 
-  let dx: number = goalX - x1;
-  let dy: number = goalY - y1;
+  let dx: number = _goalX - x1;
+  let dy: number = _goalY - y1;
 
-  // TODO make the export function return an array instead of variargs
   let [x, y, w, h] = rect_getDiff(x1, y1, w1, h1, x2, y2, w2, h2);
 
   let overlaps: boolean;
@@ -232,9 +233,8 @@ export function rect_detectCollision(
   let nx, ny;
   let ti: number;
 
+  // If the item was intersecting other
   if (rect_containsPoint(x, y, w, h, 0, 0)) {
-    // // item was intersecting other
-    // TODO make the export function return an array instead of variargs
     let [px, py] = rect_getNearestCorner(x, y, w, h, 0, 0);
 
     let wi: number = Math.min(w1, Math.abs(px)); // // area of intersection
@@ -253,8 +253,10 @@ export function rect_detectCollision(
       0,
       dx,
       dy,
-      -Number.MAX_SAFE_INTEGER,
-      Number.MAX_SAFE_INTEGER
+      // -Number.MAX_SAFE_INTEGER,
+      // Number.MAX_SAFE_INTEGER
+      -999999,
+      999999
     );
 
     // item tunnels into other
@@ -324,6 +326,7 @@ export function rect_detectCollision(
     overlaps: overlaps!,
     // @ts-ignore
     ti,
+    item: '-',
     move: { x: dx, y: dy },
     normal: { x: nx as number, y: ny as number },
     touch: { x: tx, y: ty },

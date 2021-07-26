@@ -240,6 +240,7 @@ export class World {
         if (responseName) {
           let otherRect = this.getRect(other);
 
+          // TODO: This returns undefined
           let collision: any = rect_detectCollision(
             x,
             y,
@@ -264,7 +265,7 @@ export class World {
       }
     }
 
-    tableSort(collisions, sortByTiAndDistance);
+    tableSort(collisions, sortByTiAndDistance).reverse();
 
     return collisions;
   }
