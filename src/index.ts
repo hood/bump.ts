@@ -1,572 +1,25 @@
-const DELTA = 1e-10; // floating-point margin of error
-
-function nearest(x: number, a: number, b: number): number {
-  return Math.abs(a - x) < Math.abs(b - x) ? a : b;
-}
-
-function assertType(desiredType: string, value: any, name: string): void {
-  if (typeof value !== desiredType)
-    throw new Error(
-      `${name} must be a ${desiredType}, but was a ${value} (${typeof value})`
-    );
-}
-
-function assertIsPositiveNumber(value: any, name: string): void {
-  if (isNaN(value) || value <= 0)
-    throw new Error(
-      name +
-        ' must be a positive integer, but was ' +
-        value +
-        '(' +
-        typeof value +
-        ')'
-    );
-}
-
-function assertIsRect(x: number, y: number, w: number, h: number): void {
-  assertType('number', x, 'x');
-  assertType('number', y, 'y');
-  assertIsPositiveNumber(w, 'w');
-  assertIsPositiveNumber(h, 'h');
-}
+import assertIsPositiveNumber from './helpers/generic/assertIsPositiveNumber';
+import {
+  rect_containsPoint,
+  rect_detectCollision,
+  rect_getDiff,
+  rect_getNearestCorner,
+  rect_getSegmentIntersectionIndices,
+  rect_getSquareDistance,
+  rect_isIntersecting,
+} from './rect';
+import {
+  grid_toCell,
+  grid_toCellRect,
+  grid_toWorld,
+  grid_traverse,
+} from './grid';
+import assertIsRect from './helpers/generic/assertIsRect';
+import { bounce, cross, slide, touch } from './helpers/world/responses';
+import sortByTiAndDistance from './helpers/world/sortByTiAndDistance';
 
 function defaultFilter(): string {
   return 'slide';
-}
-
-// //////////////////////////////////////////
-// // Rectangle functions
-// //////////////////////////////////////////
-
-const rect_getNearestCorner = (
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  px: number,
-  py: number
-) => {
-  return [nearest(px, x, x + w), nearest(py, y, y + h)];
-};
-
-// This is a generalized implementation of the liang-barsky algorithm, which also returns
-// the normals of the sides where the segment intersects.
-// Returns null if the segment never touches the rect
-// Notice that normals are only guaranteed to be accurate when initially ti1, ti2 == -math.huge, math.huge
-function rect_getSegmentIntersectionIndices(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  ti1: number,
-  ti2: number
-): [number?, number?, number?, number?, number?, number?] {
-  ti1 = ti1 || 0;
-  ti2 = ti2 || 1;
-
-  let dx: number = x2 - x1;
-  let dy: number = y2 - y1;
-  let nx: number;
-  let ny: number;
-  let nx1: number = 0;
-  let ny1: number = 0;
-  let nx2: number = 0;
-  let ny2: number = 0;
-  let p, q, r;
-
-  for (const side of [1, 2, 3, 4]) {
-    // left
-    if (side === 1) {
-      nx = -1;
-      ny = 0;
-      p = -dx;
-      q = x1 - x;
-    }
-    // right
-    else if (side === 2) {
-      nx = 1;
-      ny = 0;
-      p = -dx;
-      q = x + w - x1;
-    }
-    // top
-    else if (side === 3) {
-      nx = 0;
-      ny = -1;
-      p = -dy;
-      q = y1 - y;
-    }
-    //// bottom
-    else {
-      nx = 0;
-      ny = 1;
-      p = dy;
-      q = y + h - y1;
-    }
-
-    if (p == 0) {
-      if (q <= 0)
-        return [
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-        ];
-    } else {
-      r = q / p;
-
-      if (p < 0) {
-        if (r > ti2)
-          return [
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-          ];
-        else if (r > ti1) {
-          ti1 = r;
-          nx1 = nx;
-          ny1 = ny;
-        }
-      } // p > 0
-      else {
-        if (r < ti1)
-          return [
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-          ];
-        else if (r < ti2) {
-          ti2 = r;
-          nx2 = nx;
-          ny2 = ny;
-        }
-      }
-    }
-  }
-
-  return [ti1, ti2, nx1, ny1, nx2, ny2];
-}
-
-// //Calculates the minkowsky difference between 2 rects, which is another rect
-function rect_getDiff(
-  x1: number,
-  y1: number,
-  w1: number,
-  h1: number,
-  x2: number,
-  y2: number,
-  w2: number,
-  h2: number
-): [number, number, number, number] {
-  return [x2 - x1 - w1, y2 - y1 - h1, w1 + w2, h1 + h2];
-}
-
-function rect_containsPoint(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  px: number,
-  py: number
-): boolean {
-  return (
-    px - x > DELTA && py - y > DELTA && x + w - px > DELTA && y + h - py > DELTA
-  );
-}
-
-function rect_isIntersecting(
-  x1: number,
-  y1: number,
-  w1: number,
-  h1: number,
-  x2: number,
-  y2: number,
-  w2: number,
-  h2: number
-): boolean {
-  return x1 < x2 + w2 && x2 < x1 + w1 && y1 < y2 + h2 && y2 < y1 + h1;
-}
-
-function rect_getSquareDistance(
-  x1: number,
-  y1: number,
-  w1: number,
-  h1: number,
-  x2: number,
-  y2: number,
-  w2: number,
-  h2: number
-): number {
-  const dx = x1 - x2 + (w1 - w2) / 2;
-  const dy = y1 - y2 + (h1 - h2) / 2;
-  return dx * dx + dy * dy;
-}
-
-function rect_detectCollision(
-  x1: number,
-  y1: number,
-  w1: number,
-  h1: number,
-  x2: number,
-  y2: number,
-  w2: number,
-  h2: number,
-  goalX: number,
-  goalY: number
-):
-  | undefined
-  | {
-      overlaps: boolean;
-      ti: number;
-      move: {
-        x: number;
-        y: number;
-      };
-      normal: {
-        x: number;
-        y: number;
-      };
-      touch: {
-        x: number;
-        y: number;
-      };
-      itemRect: {
-        x: number;
-        y: number;
-        w: number;
-        h: number;
-      };
-      otherRect: {
-        x: number;
-        y: number;
-        w: number;
-        h: number;
-      };
-    } {
-  goalX = goalX || x1;
-  goalY = goalY || y1;
-
-  let dx: number = goalX - x1;
-  let dy: number = goalY - y1;
-
-  // TODO make the function return an array instead of variargs
-  let [x, y, w, h] = rect_getDiff(x1, y1, w1, h1, x2, y2, w2, h2);
-
-  let overlaps: boolean;
-
-  let nx, ny;
-  let ti: number;
-
-  if (rect_containsPoint(x, y, w, h, 0, 0)) {
-    // // item was intersecting other
-    // TODO make the function return an array instead of variargs
-    let [px, py] = rect_getNearestCorner(x, y, w, h, 0, 0);
-
-    let wi: number = Math.min(w1, Math.abs(px)); // // area of intersection
-    let hi: number = Math.min(h1, Math.abs(py)); // // area of intersection
-
-    ti = -wi * hi; // // ti is the negative area of intersection
-
-    overlaps = true;
-  } else {
-    let [ti1, ti2, nx1, ny1] = rect_getSegmentIntersectionIndices(
-      x,
-      y,
-      w,
-      h,
-      0,
-      0,
-      dx,
-      dy,
-      -Number.MAX_SAFE_INTEGER,
-      Number.MAX_SAFE_INTEGER
-    );
-
-    // item tunnels into other
-    if (
-      ti1 &&
-      ti1 < 1 &&
-      Math.abs(ti1 - (ti2 || 0)) >= DELTA && // special case for rect going through another rect's corner
-      (0 < ti1 + DELTA || (0 == ti1 && (ti2 || 0) > 0))
-    ) {
-      ti = ti1;
-      nx = nx1;
-      ny = ny1;
-
-      overlaps = false;
-    }
-  }
-
-  if (!ti!) return;
-
-  let tx, ty;
-
-  if (overlaps!)
-    if (dx == 0 && dy == 0) {
-      //intersecting and not moving - use minimum displacement vector
-      let [px, py] = rect_getNearestCorner(x, y, w, h, 0, 0);
-
-      if (Math.abs(px) < Math.abs(py)) py = 0;
-      else px = 0;
-
-      nx = Math.sign(px);
-      ny = Math.sign(py);
-
-      tx = x1 + px;
-      ty = y1 + py;
-    } else {
-      //intersecting and moving - move in the opposite direction
-      let [ti1, _, _nx, _ny] = rect_getSegmentIntersectionIndices(
-        x,
-        y,
-        w,
-        h,
-        0,
-        0,
-        dx,
-        dy,
-        -Number.MAX_SAFE_INTEGER,
-        1
-      );
-      nx = _nx;
-      ny = _ny;
-
-      if (!ti1) return;
-
-      tx = x1 + dx * ti1;
-      ty = y1 + dy * ti1;
-    }
-  //tunnel
-  else {
-    tx = x1 + dx * ti;
-    ty = y1 + dy * ti;
-  }
-
-  return {
-    overlaps: overlaps!,
-    ti,
-    move: { x: dx, y: dy },
-    normal: { x: nx as number, y: ny as number },
-    touch: { x: tx, y: ty },
-    itemRect: { x: x1, y: y1, w: w1, h: h1 },
-    otherRect: { x: x2, y: y2, w: w2, h: h2 },
-  };
-}
-
-//////////////////////////////////////////
-//Grid functions
-//////////////////////////////////////////
-
-function grid_toWorld(
-  cellSize: number,
-  cx: number,
-  cy: number
-): [number, number] {
-  return [(cx - 1) * cellSize, (cy - 1) * cellSize];
-}
-
-function grid_toCell(cellSize: number, x: number, y: number): [number, number] {
-  return [Math.floor(x / cellSize) + 1, Math.floor(y / cellSize) + 1];
-}
-
-//grid_traverse * functions are based on "A Fast Voxel Traversal Algorithm for Ray Tracing",
-//by John Amanides and Andrew Woo - http://www.cse.yorku.ca/~amana/research/grid.pdf
-//It has been modified to include both cells when the ray "touches a grid corner",
-//and with a different exit condition
-
-function grid_traverse_initStep(
-  cellSize: number,
-  ct: number,
-  t1: number,
-  t2: number
-): [number, number, number] {
-  let v: number = t2 - t1;
-
-  if (v > 0) return [1, cellSize / v, ((ct + v) * cellSize - t1) / v];
-  else if (v < 0)
-    return [-1, -cellSize / v, ((ct + v - 1) * cellSize - t1) / v];
-  else return [0, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER];
-}
-
-function grid_traverse(
-  cellSize: number,
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  f: any
-): void {
-  let [cx1, cy1] = grid_toCell(cellSize, x1, y1);
-  let [cx2, cy2] = grid_toCell(cellSize, x2, y2);
-  let [stepX, dx, tx] = grid_traverse_initStep(cellSize, cx1, x1, x2);
-  let [stepY, dy, ty] = grid_traverse_initStep(cellSize, cy1, y1, y2);
-  let [cx, cy] = [cx1, cy1];
-
-  f(cx, cy);
-
-  //The default implementation had an infinite loop problem when
-  //approaching the last cell in some occassions.We finish iterating
-  //when we are * next * to the last cell
-  do {
-    if (tx < ty) {
-      [tx, cx] = [tx + dx, cx + stepX];
-
-      f(cx, cy);
-    } else {
-      // Addition: include both cells when going through corners
-      if (tx == ty) f(cx + stepX, cy);
-
-      ty = ty + dy;
-      cy = cy + stepY;
-
-      f(cx, cy);
-    }
-  } while (Math.abs(cx - cx2) + Math.abs(cy - cy2) > 1);
-
-  //If we have not arrived to the last cell, use it
-  if (cx != cx2 || cy != cy2) f(cx2, cy2);
-}
-
-function grid_toCellRect(
-  cellSize: number,
-  x: number,
-  y: number,
-  w: number,
-  h: number
-): [number, number, number, number] {
-  let [cx, cy] = grid_toCell(cellSize, x, y);
-  let [cr, cb] = [Math.ceil((x + w) / cellSize), Math.ceil((y + h) / cellSize)];
-
-  return [cx, cy, cr - cx + 1, cb - cy + 1];
-}
-
-//////////////////////////////////////////
-// Responses
-//////////////////////////////////////////
-
-type ResponseType = (
-  world: World,
-  col: any,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  goalX: number,
-  goalY: number,
-  filter: any
-) => [number, number, any, number];
-
-function touch(
-  world: any,
-  col: any,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  goalX: number,
-  goalY: number,
-  filter: any
-): [number, number, any, number] {
-  return [col.touch.x, col.touch.y, {}, 0];
-}
-
-function cross(
-  world: any,
-  col: any,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  goalX: number,
-  goalY: number,
-  filter: any
-): [number, number, any, number] {
-  const [cols, len] = world.project(col.item, x, y, w, h, goalX, goalY, filter);
-  return [goalX, goalY, cols, len];
-}
-
-function slide(
-  world: World,
-  col: any,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  goalX: number,
-  goalY: number,
-  filter: any
-): [number, number, any, number] {
-  goalX = goalX || x;
-  goalY = goalY || y;
-
-  let [tch, move] = [col.touch, col.move];
-
-  if (move.x != 0 || move.y != 0)
-    if (col.normal.x != 0) goalX = tch.x;
-    else goalY = tch.y;
-
-  col.slide = { x: goalX, y: goalY };
-
-  x = tch.x;
-  y = tch.y;
-
-  let [cols, len] = world.project(col.item, x, y, w, h, goalX, goalY, filter);
-
-  return [goalX, goalY, cols, len];
-}
-
-function bounce(
-  world: World,
-  col: any,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  goalX: number,
-  goalY: number,
-  filter: any
-): [number, number, any, number] {
-  goalX = goalX || x;
-  goalY = goalY || y;
-
-  let [tch, move] = [col.touch, col.move];
-  let [tx, ty] = [tch.x, tch.y];
-
-  let [bx, by] = [tx, ty];
-
-  if (move.x != 0 || move.y != 0) {
-    let [bnx, bny] = [goalX - tx, goalY - ty];
-
-    if (col.normal.x == 0) bny = -bny;
-    else bnx = -bnx;
-
-    bx = tx + bnx;
-    ty = ty + bny;
-  }
-
-  col.bounce = { x: bx, y: by };
-
-  x = tch.x;
-  y = tch.y;
-
-  goalX = bx;
-  goalY = by;
-
-  const [cols, len] = world.project(col.item, x, y, w, h, goalX, goalY, filter);
-
-  return [goalX, goalY, cols, len];
 }
 
 //////////////////////////////////////////
@@ -577,59 +30,6 @@ function bounce(
 
 function sortByWeight(a: any, b: any): boolean {
   return a.weight < b.weight;
-}
-
-function sortByTiAndDistance(a: any, b: any): boolean {
-  if (a.ti == b.ti) {
-    const [ir, ar, br] = [a.itemRect, a.otherRect, b.otherRect];
-
-    const ad = rect_getSquareDistance(
-      ir.x,
-      ir.y,
-      ir.w,
-      ir.h,
-      ar.x,
-      ar.y,
-      ar.w,
-      ar.h
-    );
-    const bd = rect_getSquareDistance(
-      ir.x,
-      ir.y,
-      ir.w,
-      ir.h,
-      br.x,
-      br.y,
-      br.w,
-      br.h
-    );
-
-    return ad < bd;
-  }
-
-  return a.ti < b.ti;
-}
-
-function addItemToCell(
-  self: World,
-  itemID: string,
-  cx: number,
-  cy: number
-): void {
-  self.rows[cy] = self.rows[cy] || {};
-
-  let row = self.rows[cy];
-
-  row[cx] = row[cx] || { itemCount: 0, x: cx, y: cy, items: {} };
-
-  let cell = row[cx];
-
-  self.nonEmptyCells[cell] = true;
-
-  if (!cell.items[itemID]) {
-    cell.items[itemID] = true;
-    cell.itemCount = cell.itemCount + 1;
-  }
 }
 
 function removeItemFromCell(
@@ -797,7 +197,7 @@ function tableSort(table: any, fn: (...args: any[]) => any) {
 
 //Misc Public Methods
 
-class World {
+export class World {
   responses: { [responseID: string]: any } = {};
   cellSize: number = 0;
   rows: any[][];
@@ -910,7 +310,8 @@ class World {
   countCells(): number {
     let count = 0;
 
-    for (const row of this.rows) for (const col of row) count++;
+    for (const row of this.rows.filter(row => !!row))
+      for (const _col of row) if (!!_col) count++;
 
     return count;
   }
@@ -930,6 +331,23 @@ class World {
 
   countItems(): number {
     return Object.keys(this.rects).length;
+  }
+
+  private addItemToCell(itemID: string, cx: number, cy: number): void {
+    this.rows[cy] = this.rows[cy] || [];
+
+    const row = this.rows[cy];
+
+    row[cx] = row[cx] || { itemCount: 0, x: cx, y: cy, items: {} };
+
+    const cell = row[cx];
+
+    this.nonEmptyCells[cell] = true;
+
+    if (!cell.items[itemID]) {
+      cell.items[itemID] = true;
+      cell.itemCount++;
+    }
   }
 
   getRect(itemID: string): [number, number, number, number] {
@@ -1071,9 +489,8 @@ class World {
 
     let [cl, ct, cw, ch] = grid_toCellRect(this.cellSize, x, y, w, h);
 
-    for (let cy = ct; cy < ct + ch - 1; cy++)
-      for (let cx = cl; cy < cl + cw - 1; cx++)
-        addItemToCell(this, itemID, cx, cy);
+    for (let cy = ct; cy < ct + ch; cy++)
+      for (let cx = cl; cx < cl + cw; cx++) this.addItemToCell(itemID, cx, cy);
 
     return itemID;
   }
@@ -1124,7 +541,7 @@ class World {
 
           for (let cx = cl2; cx < cr2; cx++)
             if (cyOut || cx < cl1 || cx > cr1)
-              addItemToCell(this, itemID, cx, cy);
+              this.addItemToCell(itemID, cx, cy);
         }
       }
 
@@ -1219,7 +636,7 @@ class World {
 
 // Public library functions
 
-let bump = {
+const bump = {
   _VERSION: 'bumpTS v0.0.1',
   _URL: 'https://github.com/hood/bump.ts',
   _DESCRIPTION:
@@ -1263,4 +680,4 @@ let bump = {
   },
 };
 
-export default bump;
+export default Object.seal(bump);
