@@ -187,8 +187,8 @@ export function rect_detectCollision(
   y2: number,
   w2: number,
   h2: number,
-  goalX: number,
-  goalY: number
+  goalX?: number,
+  goalY?: number
 ):
   | undefined
   | {
@@ -219,8 +219,8 @@ export function rect_detectCollision(
         h: number;
       };
     } {
-  const _goalX: number = isNaN(goalX) ? x1 : goalX;
-  const _goalY: number = isNaN(goalY) ? y1 : goalY;
+  const _goalX: number = isNaN(goalX!) ? x1 : goalX!;
+  const _goalY: number = isNaN(goalY!) ? y1 : goalY!;
 
   let dx: number = _goalX - x1;
   let dy: number = _goalY - y1;
