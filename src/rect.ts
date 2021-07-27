@@ -218,6 +218,10 @@ export function rect_detectCollision(
         w: number;
         h: number;
       };
+      slide?: {
+        x: number;
+        y: number;
+      };
     } {
   const _goalX: number = isNaN(goalX!) ? x1 : goalX!;
   const _goalY: number = isNaN(goalY!) ? y1 : goalY!;

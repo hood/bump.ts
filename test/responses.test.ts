@@ -37,42 +37,42 @@ function touch(
   ];
 }
 
-// function slide(
-//   x: number,
-//   y: number,
-//   w: number,
-//   h: number,
-//   ox: number,
-//   oy: number,
-//   ow: number,
-//   oh: number,
-//   goalX?: number,
-//   goalY?: number
-// ) {
-//   const collision = rect_detectCollision(
-//     x,
-//     y,
-//     w,
-//     h,
-//     ox,
-//     oy,
-//     ow,
-//     oh,
-//     goalX,
-//     goalY
-//   );
+function slide(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  ox: number,
+  oy: number,
+  ow: number,
+  oh: number,
+  goalX?: number,
+  goalY?: number
+) {
+  const collision = rect_detectCollision(
+    x,
+    y,
+    w,
+    h,
+    ox,
+    oy,
+    ow,
+    oh,
+    goalX,
+    goalY
+  );
 
-// responses.slide(world, collision, x, y, w, h, gaolX, goalY)
+  Bump.responses.slide(world, collision, x, y, w, h, goalX!, goalY!);
 
-// return [
-//   collision!.touch.x,
-//   collision!.touch.y,
-//   collision!.normal.x,
-//   collision!.normal.y,
-//   collision!.slide.y,
-//   collision!.slide.y,
-// ];
-// }
+  return [
+    collision!.touch.x,
+    collision!.touch.y,
+    collision!.normal.x,
+    collision!.normal.y,
+    collision!['slide']!.x!,
+    collision!['slide']!.y!,
+  ];
+}
 
 describe('responses', () => {
   describe('touch', () => {
@@ -121,26 +121,26 @@ describe('responses', () => {
     });
   });
 
-  // describe('slide', () => {
-  //   it('should slide on overlaps', () => {
-  //     expect(slide(3, 3, 2, 2, 0, 0, 8, 8, 4, 5)).toEqual([
-  //       0.5,
-  //       -2,
-  //       0,
-  //       -1,
-  //       4,
-  //       -2,
-  //     ]);
-  //     expect(slide(3, 3, 2, 2, 0, 0, 8, 8, 5, 4)).toEqual([
-  //       -2,
-  //       0.5,
-  //       -1,
-  //       0,
-  //       -2,
-  //       4,
-  //     ]);
-  //     expect(slide(3, 3, 2, 2, 0, 0, 8, 8, 2, 1)).toEqual([5.5, 8, 0, 1, 2, 8]);
-  //     expect(slide(3, 3, 2, 2, 0, 0, 8, 8, 1, 2)).toEqual([8, 5.5, 1, 0, 8, 2]);
-  //   });
-  // });
+  describe('slide', () => {
+    it('should slide on overlaps', () => {
+      expect(slide(3, 3, 2, 2, 0, 0, 8, 8, 4, 5)).toEqual([
+        0.5,
+        -2,
+        0,
+        -1,
+        4,
+        -2,
+      ]);
+      expect(slide(3, 3, 2, 2, 0, 0, 8, 8, 5, 4)).toEqual([
+        -2,
+        0.5,
+        -1,
+        0,
+        -2,
+        4,
+      ]);
+      expect(slide(3, 3, 2, 2, 0, 0, 8, 8, 2, 1)).toEqual([5.5, 8, 0, 1, 2, 8]);
+      expect(slide(3, 3, 2, 2, 0, 0, 8, 8, 1, 2)).toEqual([8, 5.5, 1, 0, 8, 2]);
+    });
+  });
 });

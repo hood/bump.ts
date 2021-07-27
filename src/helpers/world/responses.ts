@@ -51,7 +51,7 @@ export function slide(
   h: number,
   goalX: number,
   goalY: number,
-  filter: any
+  filter?: any
 ): { x: number; y: number; collisions: any[] } {
   goalX = goalX || x;
   goalY = goalY || y;
