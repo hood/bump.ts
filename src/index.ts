@@ -71,8 +71,6 @@ function getCellsTouchedBySegment(
   return cells;
 }
 
-// TODO: Only return items
-// TODO: Fix this. It's broken af
 function getInfoAboutItemsTouchedBySegment(
   self: World,
   x1: number,
@@ -80,13 +78,12 @@ function getInfoAboutItemsTouchedBySegment(
   x2: number,
   y2: number,
   filter?: any
-): [any, number] {
+): any[] {
   let cells = getCellsTouchedBySegment(self, x1, y1, x2, y2);
   let rect, l, t, w, h, ti1, ti2;
 
   let visited: { [itemID: string]: boolean } = {};
   let itemInfo: any[] = [];
-  let itemInfoLen = 0;
 
   for (const cell of cells) {
     if (cell?.items)
@@ -135,12 +132,12 @@ function getInfoAboutItemsTouchedBySegment(
                 Number.MAX_SAFE_INTEGER
               );
 
-              itemInfo[itemInfoLen++] = {
+              itemInfo.push({
                 item: itemID,
                 ti1: ti1,
                 ti2: ti2,
                 weight: Math.min(tii0 || 0, tii1 || 0),
-              };
+              });
             }
           }
         }
@@ -149,7 +146,7 @@ function getInfoAboutItemsTouchedBySegment(
 
   tableSort(itemInfo, sortByWeight);
 
-  return [itemInfo, itemInfoLen];
+  return itemInfo;
 }
 
 function tableSort(table: any, fn: (...args: any[]) => any) {
@@ -434,7 +431,7 @@ export class World {
   }
 
   querySegment(x1: number, y1: number, x2: number, y2: number, filter?: any) {
-    const [itemsInfo] = getInfoAboutItemsTouchedBySegment(
+    const itemsInfo = getInfoAboutItemsTouchedBySegment(
       this,
       x1,
       y1,
@@ -445,7 +442,7 @@ export class World {
 
     let items: any[] = [];
 
-    for (const itemInfo of itemsInfo) items.push(itemInfo.item);
+    if (itemsInfo) for (const itemInfo of itemsInfo) items.push(itemInfo.item);
 
     return items;
   }
@@ -456,8 +453,8 @@ export class World {
     x2: number,
     y2: number,
     filter: any
-  ): [any, number] {
-    let [itemInfo, len] = getInfoAboutItemsTouchedBySegment(
+  ): any[] {
+    let itemInfo = getInfoAboutItemsTouchedBySegment(
       this,
       x1,
       y1,
@@ -465,6 +462,7 @@ export class World {
       y2,
       filter
     );
+
     let dx: number = x2 - x1;
     let dy: number = y2 - y1;
 
@@ -472,8 +470,9 @@ export class World {
     let ti1: number;
     let ti2: number;
 
-    for (const i in Array.from({ length: len }).fill(1)) {
-      info = itemInfo[Number(i)];
+    for (const itemID of itemInfo) {
+      info = itemInfo[itemID];
+
       ti1 = info.ti1;
       ti2 = info.ti2;
 
@@ -484,7 +483,7 @@ export class World {
       info.y2 = y1 + dy * ti2;
     }
 
-    return [itemInfo, len];
+    return itemInfo;
   }
 
   //- Main methods
