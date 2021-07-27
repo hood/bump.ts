@@ -1,6 +1,8 @@
+import Bump from '../src/index';
 import { rect_detectCollision } from '../src/rect';
 
-const world = Bump.newWorld()
+// @ts-ignore
+const world = Bump.newWorld(64);
 
 function touch(
   x: number,
@@ -35,8 +37,6 @@ function touch(
   ];
 }
 
-
-
 // function slide(
 //   x: number,
 //   y: number,
@@ -62,19 +62,17 @@ function touch(
 //     goalY
 //   );
 
-  // responses.slide(world, collision, x, y, w, h, gaolX, goalY)
+// responses.slide(world, collision, x, y, w, h, gaolX, goalY)
 
-  // return [
-  //   collision!.touch.x,
-  //   collision!.touch.y,
-  //   collision!.normal.x,
-  //   collision!.normal.y,
-  //   collision!.slide.y,
-  //   collision!.slide.y,
-  // ];
+// return [
+//   collision!.touch.x,
+//   collision!.touch.y,
+//   collision!.normal.x,
+//   collision!.normal.y,
+//   collision!.slide.y,
+//   collision!.slide.y,
+// ];
 // }
-
-
 
 describe('responses', () => {
   describe('touch', () => {
