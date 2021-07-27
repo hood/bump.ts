@@ -118,8 +118,8 @@ function getInfoAboutItemsTouchedBySegment(
             ti2 = arr1![1];
 
             if (
-              ti1 &&
-              ((0 < ti1 && ti1 < 1) || (0 < (ti2 || 0) && (ti2 || 0) < 1))
+              !isNaN(ti1 as number) &&
+              ((0 < ti1! && ti1! < 1) || (0 < ti2! && ti2! < 1))
             ) {
               // -- the sorting is according to the t of an infinite line, not the segment
               const [tii0, tii1] = rect_getSegmentIntersectionIndices(
