@@ -39,14 +39,15 @@ function sortByWeight(a: any, b: any): boolean {
   return a.weight < b.weight;
 }
 
+// TODO: FIx this. it should return an array but returns an object with number keys
 function getCellsTouchedBySegment(
   self: World,
   x1: number,
   y1: number,
   x2: number,
   y2: number
-): [any, number] {
-  let cells: any = {};
+): any[] {
+  let cells: any[] = [];
   let cellsLen = 0;
   let visited: { [itemID: string]: boolean } = {};
 
@@ -67,60 +68,40 @@ function getCellsTouchedBySegment(
     cells[cellsLen] = cell;
   });
 
-  return [cells, cellsLen];
+  return cells;
 }
 
+// TODO: Only return items
+// TODO: Fix this. It's broken af
 function getInfoAboutItemsTouchedBySegment(
   self: World,
   x1: number,
   y1: number,
   x2: number,
   y2: number,
-  filter: any
+  filter?: any
 ): [any, number] {
-  let [cells, len] = getCellsTouchedBySegment(self, x1, y1, x2, y2);
-  let cell, rect, l, t, w, h, ti1, ti2;
+  let cells = getCellsTouchedBySegment(self, x1, y1, x2, y2);
+  let rect, l, t, w, h, ti1, ti2;
 
   let visited: { [itemID: string]: boolean } = {};
   let itemInfo: any[] = [];
   let itemInfoLen = 0;
 
-  for (const i in Array.from({ length: len }).fill(1)) {
-    cell = cells[i];
+  for (const cell of cells) {
+    if (cell?.items)
+      for (const itemID of Object.keys(cell.items)) {
+        if (!visited[itemID]) {
+          visited[itemID] = true;
 
-    for (const item of cell.items) {
-      if (!visited[item]) {
-        visited[item] = true;
+          if (!filter || filter(itemID)) {
+            rect = self['rects'][itemID];
+            l = rect.x;
+            t = rect.y;
+            w = rect.w;
+            h = rect.h;
 
-        if (!filter || filter(item)) {
-          rect = self['rects'][item];
-          l = rect.x;
-          t = rect.y;
-          w = rect.w;
-          h = rect.h;
-
-          const arr1 = rect_getSegmentIntersectionIndices(
-            l,
-            t,
-            w,
-            h,
-            x1,
-            y1,
-            x2,
-            y2,
-            0,
-            1
-          );
-
-          ti1 = arr1![0];
-          ti2 = arr1![1];
-
-          if (
-            ti1 &&
-            ((0 < ti1 && ti1 < 1) || (0 < (ti2 || 0) && (ti2 || 0) < 1))
-          ) {
-            // -- the sorting is according to the t of an infinite line, not the segment
-            const [tii0, tii1] = rect_getSegmentIntersectionIndices(
+            const arr1 = rect_getSegmentIntersectionIndices(
               l,
               t,
               w,
@@ -129,20 +110,41 @@ function getInfoAboutItemsTouchedBySegment(
               y1,
               x2,
               y2,
-              -Number.MAX_SAFE_INTEGER,
-              Number.MAX_SAFE_INTEGER
+              0,
+              1
             );
 
-            itemInfo[itemInfoLen++] = {
-              item: item,
-              ti1: ti1,
-              ti2: ti2,
-              weight: Math.min(tii0 || 0, tii1 || 0),
-            };
+            ti1 = arr1![0];
+            ti2 = arr1![1];
+
+            if (
+              ti1 &&
+              ((0 < ti1 && ti1 < 1) || (0 < (ti2 || 0) && (ti2 || 0) < 1))
+            ) {
+              // -- the sorting is according to the t of an infinite line, not the segment
+              const [tii0, tii1] = rect_getSegmentIntersectionIndices(
+                l,
+                t,
+                w,
+                h,
+                x1,
+                y1,
+                x2,
+                y2,
+                -Number.MAX_SAFE_INTEGER,
+                Number.MAX_SAFE_INTEGER
+              );
+
+              itemInfo[itemInfoLen++] = {
+                item: itemID,
+                ti1: ti1,
+                ti2: ti2,
+                weight: Math.min(tii0 || 0, tii1 || 0),
+              };
+            }
           }
         }
       }
-    }
   }
 
   tableSort(itemInfo, sortByWeight);
@@ -272,7 +274,7 @@ export class World {
   countCells(): number {
     let count = 0;
 
-    for (const row of this.rows.filter(row => !!row))
+    for (const row of this.rows.filter((row) => !!row))
       for (const _col of row) if (!!_col) count++;
 
     return count;
@@ -431,8 +433,8 @@ export class World {
     return [items, len];
   }
 
-  querySegment(x1: number, y1: number, x2: number, y2: number, filter: any) {
-    let [itemInfo, len] = getInfoAboutItemsTouchedBySegment(
+  querySegment(x1: number, y1: number, x2: number, y2: number, filter?: any) {
+    const [itemsInfo] = getInfoAboutItemsTouchedBySegment(
       this,
       x1,
       y1,
@@ -440,12 +442,12 @@ export class World {
       y2,
       filter
     );
+
     let items: any[] = [];
 
-    for (const i in Array.from({ length: len }).fill(1))
-      items[i] = itemInfo[i].item;
+    for (const itemInfo of itemsInfo) items.push(itemInfo.item);
 
-    return [items, len];
+    return items;
   }
 
   querySegmentWithCoords(

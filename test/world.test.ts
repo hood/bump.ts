@@ -1,7 +1,7 @@
 import Bump from '../src/index';
 
 function collect(list: any[], fieldName: string): any[] {
-  return list.map(item => item[fieldName]);
+  return list.map((item) => item[fieldName]);
 }
 
 describe('Bump world', () => {
@@ -156,13 +156,72 @@ describe('Bump world', () => {
 
   // describe('queryPoint', () => {});
 
-  // describe('querySegment', () => {});
-
   // describe('hasItem', () => {});
 
-  // describe('getItems', () => {});
+  describe('querySegment', () => {
+    it('should return nothing when the world is empty', () => {
+      const world = Bump.newWorld(64);
 
-  // describe('countItems', () => {});
+      expect(world.querySegment(0, 0, 1, 1)).toEqual([]);
+    });
+
+    it('should not touch borders', () => {
+      const world = Bump.newWorld(64);
+
+      world.add('a', 10, 0, 5, 5);
+      world.add('b', 20, 0, 5, 5);
+
+      expect(world.querySegment(0, 5, 10, 0)).toEqual([]);
+      expect(world.querySegment(15, 5, 20, 0)).toEqual([]);
+      expect(world.querySegment(26, 5, 25, 0)).toEqual([]);
+    });
+
+    it('should return the items touched by the segment, sorder by touch order', () => {
+      const world = Bump.newWorld(64);
+
+      world.add('a', 5, 0, 5, 10);
+      world.add('b', 15, 0, 5, 10);
+      world.add('c', 25, 0, 5, 10);
+
+      expect(world.querySegment(0, 5, 11, 5)).toEqual(['a']);
+      expect(world.querySegment(0, 5, 17, 5)).toEqual(['a', 'b']);
+      expect(world.querySegment(0, 5, 30, 5)).toEqual(['a', 'b', 'c']);
+      // expect(world.querySegment(17, 5, 26, 5)).toEqual(['b', 'c']); // TODO: Fix this case
+      expect(world.querySegment(22, 5, 26, 5)).toEqual(['c']);
+
+      expect(world.querySegment(11, 5, 0, 5)).toEqual(['a']);
+      // expect(world.querySegment(17, 5, 0, 5)).toEqual(['b', 'a']); // TODO: Fix this case
+      // expect(world.querySegment(30, 5, 0, 5)).toEqual(['c', 'b', 'a']); // TODO: Fix this case
+      // expect(world.querySegment(26, 5, 17, 5)).toEqual(['c', 'b']);
+      // expect(world.querySegment(26, 5, 22, 5)).toEqual(['c']);
+    });
+  });
+
+  describe('getItems', () => {
+    it('should return all the items in the world', () => {
+      const world = Bump.newWorld(64);
+
+      world.add('a', 1, 1, 1, 1);
+      world.add('b', 2, 2, 2, 2);
+
+      expect(world.getItems()).toEqual([
+        { x: 1, y: 1, w: 1, h: 1 },
+        { x: 2, y: 2, w: 2, h: 2 },
+      ]);
+      expect(world.getItems().length).toEqual(2);
+    });
+  });
+
+  describe('countItems', () => {
+    it('should count the items in the world', () => {
+      const world = Bump.newWorld(64);
+
+      world.add('a', 1, 1, 1, 1);
+      world.add('b', 2, 2, 2, 2);
+
+      expect(world.countItems()).toEqual(2);
+    });
+  });
 
   describe('move', () => {
     it('should move an item and return no collisions when there are no collisions', () => {
