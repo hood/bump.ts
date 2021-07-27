@@ -29,8 +29,8 @@ export function rect_getSegmentIntersectionIndices(
   ti1: number,
   ti2: number
 ): [number?, number?, number?, number?, number?, number?] {
-  let _ti1 = ti1 || 0;
-  let _ti2 = ti2 || 1;
+  let _ti1 = isNaN(ti1) ? 0 : ti1;
+  let _ti2 = isNaN(ti2) ? 1 : ti2;
 
   let dx: number = x2 - x1;
   let dy: number = y2 - y1;
@@ -219,8 +219,8 @@ export function rect_detectCollision(
         h: number;
       };
     } {
-  const _goalX: number = goalX || x1;
-  const _goalY: number = goalY || y1;
+  const _goalX: number = isNaN(goalX) ? x1 : goalX;
+  const _goalY: number = isNaN(goalY) ? y1 : goalY;
 
   let dx: number = _goalX - x1;
   let dy: number = _goalY - y1;
@@ -261,7 +261,7 @@ export function rect_detectCollision(
       ti1 &&
       ti1 < 1 &&
       Math.abs(ti1 - (ti2 || 0)) >= DELTA && // special case for rect going through another rect's corner
-      (0 < ti1 + DELTA || (0 == ti1 && (ti2 || 0) > 0))
+      (0 < ti1 + DELTA || (0 === ti1 && (ti2 || 0) > 0))
     ) {
       ti = ti1;
       nx = nx1;

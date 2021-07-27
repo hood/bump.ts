@@ -624,12 +624,12 @@ export class World {
     );
 
     // Current broken test prints otherRect = {h:2, w:1,x:0, y:2} i lua
-    require('console').dir(
-      {
-        projectedCollisions,
-      },
-      { depth: null }
-    );
+    // require('console').dir(
+    //   {
+    //     projectedCollisions,
+    //   },
+    //   { depth: null }
+    // );
 
     let collisionsCounter = projectedCollisions?.length || 0;
 
@@ -656,10 +656,10 @@ export class World {
       );
 
       // This prints once in TS and once in lua. Whilelen is 0 in lua
-      require('console').dir({
-        afterCols: collisions,
-        whillelen: projectedCollisions?.length,
-      });
+      // require('console').dir({
+      //   afterCols: collisions,
+      //   whillelen: projectedCollisions?.length,
+      // });
 
       goalX = x;
       goalY = y;
