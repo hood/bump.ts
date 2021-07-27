@@ -31,5 +31,35 @@ describe('rect', () => {
       expect(a?.ti).toEqual(0.6);
       expect(a?.normal).toEqual({ x: -1, y: 0 });
     });
+
+    it('should detect collisions from the right when itemRect intersects otherRect', () => {
+      const a = rect_detectCollision(6, 0, 1, 1, 1, 0, 1, 1, 1, 1);
+
+      expect(a?.overlaps).toBe(false);
+      expect(a?.ti).toEqual(0.8);
+      expect(a?.normal).toEqual({ x: 1, y: 0 });
+    });
+
+    it('should detect collisions from the top when itemRect intersects otherRect', () => {
+      const a = rect_detectCollision(0, 0, 1, 1, 0, 4, 1, 1, 0, 5);
+
+      expect(a?.overlaps).toBe(false);
+      expect(a?.ti).toEqual(0.6);
+      expect(a?.normal).toEqual({ x: 0, y: -1 });
+    });
+
+    it('should detect collisions from the bottom when itemRect intersects otherRect', () => {
+      const a = rect_detectCollision(0, 4, 1, 1, 0, 0, 1, 1, 0, -1);
+
+      expect(a?.overlaps).toBe(false);
+      expect(a?.ti).toEqual(0.6);
+      expect(a?.normal).toEqual({ x: 0, y: 1 });
+    });
+
+    it('should not get caught by nasty corner cases', () => {
+      expect(rect_detectCollision(0, 16, 16, 16, 16, 0, 16, 16, -1, 15)).toBe(
+        undefined
+      );
+    });
   });
 });
