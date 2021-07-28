@@ -79,9 +79,9 @@ export function bounce(
   y: number,
   w: number,
   h: number,
-  goalX: number,
-  goalY: number,
-  filter: any
+  goalX?: number,
+  goalY?: number,
+  filter?: any
 ): { x: number; y: number; collisions: any[] } {
   let _goalX: number = goalX || x;
   let _goalY: number = goalY || y;

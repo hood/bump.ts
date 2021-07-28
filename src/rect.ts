@@ -222,6 +222,10 @@ export function rect_detectCollision(
         x: number;
         y: number;
       };
+      bounce?: {
+        x: number;
+        y: number;
+      };
     } {
   const _goalX: number = isNaN(goalX!) ? x1 : goalX!;
   const _goalY: number = isNaN(goalY!) ? y1 : goalY!;

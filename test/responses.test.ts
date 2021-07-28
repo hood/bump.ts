@@ -74,6 +74,43 @@ function slide(
   ];
 }
 
+function bounce(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  ox: number,
+  oy: number,
+  ow: number,
+  oh: number,
+  goalX?: number,
+  goalY?: number
+) {
+  const collision = rect_detectCollision(
+    x,
+    y,
+    w,
+    h,
+    ox,
+    oy,
+    ow,
+    oh,
+    goalX,
+    goalY
+  );
+
+  Bump.responses.bounce(world, collision, x, y, w, h, goalX, goalY);
+
+  return [
+    collision!.touch.x,
+    collision!.touch.y,
+    collision!.normal.x,
+    collision!.normal.y,
+    collision!['bounce']!.x!,
+    collision!['bounce']!.y!,
+  ];
+}
+
 describe('responses', () => {
   describe('touch', () => {
     it('should return the left ,top coordinates of the minimum displacement on static items when there is no movement when resolvicng collisions on overlaps', () => {
@@ -141,6 +178,80 @@ describe('responses', () => {
       ]);
       expect(slide(3, 3, 2, 2, 0, 0, 8, 8, 2, 1)).toEqual([5.5, 8, 0, 1, 2, 8]);
       expect(slide(3, 3, 2, 2, 0, 0, 8, 8, 1, 2)).toEqual([8, 5.5, 1, 0, 8, 2]);
+    });
+
+    it('should slide over tunnels', () => {
+      expect(slide(10, 10, 2, 2, 0, 0, 8, 8, 1, 4)).toEqual([7, 8, 0, 1, 1, 8]);
+      expect(slide(10, 10, 2, 2, 0, 0, 8, 8, 4, 1)).toEqual([8, 7, 1, 0, 8, 1]);
+
+      // perfect corner case:
+      expect(slide(10, 10, 2, 2, 0, 0, 8, 8, 1, 1)).toEqual([8, 8, 1, 0, 8, 1]);
+    });
+  });
+
+  describe('bounce', () => {
+    it('should bounce on overlaps', () => {
+      expect(bounce(3, 3, 2, 2, 0, 0, 8, 8, 4, 5)).toEqual([
+        0.5,
+        -2,
+        0,
+        -1,
+        4,
+        -9,
+      ]);
+      expect(bounce(3, 3, 2, 2, 0, 0, 8, 8, 5, 4)).toEqual([
+        -2,
+        0.5,
+        -1,
+        0,
+        -9,
+        4,
+      ]);
+      expect(bounce(3, 3, 2, 2, 0, 0, 8, 8, 2, 1)).toEqual([
+        5.5,
+        8,
+        0,
+        1,
+        2,
+        15,
+      ]);
+      expect(bounce(3, 3, 2, 2, 0, 0, 8, 8, 1, 2)).toEqual([
+        8,
+        5.5,
+        1,
+        0,
+        15,
+        2,
+      ]);
+    });
+
+    it('should bounce over tunnels', () => {
+      expect(bounce(10, 10, 2, 2, 0, 0, 8, 8, 1, 4)).toEqual([
+        7,
+        8,
+        0,
+        1,
+        1,
+        12,
+      ]);
+      expect(bounce(10, 10, 2, 2, 0, 0, 8, 8, 4, 1)).toEqual([
+        8,
+        7,
+        1,
+        0,
+        12,
+        1,
+      ]);
+
+      // perfect corner case:
+      expect(bounce(10, 10, 2, 2, 0, 0, 8, 8, 1, 1)).toEqual([
+        8,
+        8,
+        1,
+        0,
+        15,
+        1,
+      ]);
     });
   });
 });
