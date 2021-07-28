@@ -1,7 +1,7 @@
 import Bump from '../src/index';
 
 function collect(list: any[], fieldName: string): any[] {
-  return list.map((item) => item[fieldName]);
+  return list.map(item => item[fieldName]);
 }
 
 describe('Bump world', () => {
@@ -135,16 +135,16 @@ describe('Bump world', () => {
       expect(() => world.remove('TEST_ITEM')).toThrow();
     });
 
-    it.skip('should make an item disappear from the world', () => {
+    it('should make an item disappear from the world', () => {
       const world = Bump.newWorld(64);
 
       const itemID = world.add('TEST_ITEM', 0, 0, 10, 10);
 
-      expect(world.project('TEST_ITEM', 5, 0, 1, 1).length).toEqual(1);
+      expect(world.project('-', 5, 0, 1, 1).length).toEqual(1);
 
       world.remove(itemID);
 
-      expect(world.project('TEST_ITEM', 5, 0, 1, 1).length).toEqual(0);
+      expect(world.project('-', 5, 0, 1, 1).length).toEqual(0);
     });
   });
 

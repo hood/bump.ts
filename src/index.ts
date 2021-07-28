@@ -203,8 +203,9 @@ export class World {
     // TODO: Should return `Collision[]`
     assertIsRect(x, y, w, h);
 
-    goalX = goalX || x;
-    goalY = goalY || y;
+    const _goalX = isNaN(goalX as number) ? x : goalX!;
+    const _goalY = isNaN(goalY as number) ? y : goalY!;
+
     filter = filter || defaultFilter;
 
     let collisions: any[] = [];
@@ -215,11 +216,11 @@ export class World {
 
     // This could probably be done with less cells using a polygon raster over the cells instead of a
     // bounding rect of the whole movement.Conditional to building a queryPolygon method
-    let tl: number = Math.min(goalX, x);
-    let tt: number = Math.min(goalY, y);
+    let tl: number = Math.min(_goalX, x);
+    let tt: number = Math.min(_goalY, y);
 
-    let tr: number = Math.max(goalX + w, x + w);
-    let tb: number = Math.max(goalY + h, y + h);
+    let tr: number = Math.max(_goalX + w, x + w);
+    let tb: number = Math.max(_goalY + h, y + h);
 
     let tw: number = tr - tl;
     let th: number = tb - tt;
@@ -248,8 +249,8 @@ export class World {
             otherRect.y,
             otherRect.w,
             otherRect.h,
-            goalX,
-            goalY
+            _goalX,
+            _goalY
           );
 
           if (collision) {
@@ -378,20 +379,13 @@ export class World {
   }
 
   //- Query methods
-  queryRect(
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    filter: any
-  ): [any, number] {
+  queryRect(x: number, y: number, w: number, h: number, filter: any): any[] {
     assertIsRect(x, y, w, h);
 
     let [cl, ct, cw, ch] = grid_toCellRect(this.cellSize, x, y, w, h);
     let dictItemsInCellRect = this.getDictItemsInCellRect(cl, ct, cw, ch);
 
     let items: any[] = [];
-    let len = 0;
 
     let rect;
 
@@ -402,18 +396,17 @@ export class World {
         (!filter || filter(itemID)) &&
         rect_isIntersecting(x, y, w, h, rect.x, rect.y, rect.w, rect.h)
       )
-        items[len++] = itemID;
+        items.push(itemID);
     }
 
-    return [items, len];
+    return items;
   }
 
-  queryPoint(x: number, y: number, filter: any): [any[], number] {
+  queryPoint(x: number, y: number, filter: any): any[] {
     let [cx, cy] = this.toCell(x, y);
     let dictItemsInCellRect = this.getDictItemsInCellRect(cx, cy, 1, 1);
 
     let items: any[] = [];
-    let len = 0;
 
     let rect: any;
 
@@ -424,10 +417,10 @@ export class World {
         (!filter || filter(itemID)) &&
         rect_containsPoint(rect.x, rect.y, rect.w, rect.h, x, y)
       )
-        items[len++] = itemID;
+        items.push(itemID);
     }
 
-    return [items, len];
+    return items;
   }
 
   querySegment(x1: number, y1: number, x2: number, y2: number, filter?: any) {
@@ -526,10 +519,10 @@ export class World {
   update(itemID: string, x2: number, y2: number, w2?: any, h2?: number): void {
     let itemRect = this.getRect(itemID);
 
-    w2 = w2 || itemRect.w;
-    h2 = h2 || itemRect.h;
+    w2 = isNaN(w2 as number) ? itemRect.w : w2;
+    h2 = isNaN(h2 as number) ? itemRect.h : h2;
 
-    assertIsRect(x2, y2, w2, h2);
+    assertIsRect(x2, y2, w2, h2!);
 
     if (
       itemRect.x != x2 ||
@@ -545,7 +538,13 @@ export class World {
         itemRect.h
       );
 
-      let [cl2, ct2, cw2, ch2] = grid_toCellRect(this.cellSize, x2, y2, w2, h2);
+      let [cl2, ct2, cw2, ch2] = grid_toCellRect(
+        this.cellSize,
+        x2,
+        y2,
+        w2,
+        h2!
+      );
 
       if (cl1 != cl2 || ct1 != ct2 || cw1 != cw2 || ch1 != ch2) {
         let cr1: number = cl1 + cw1 - 1;
@@ -554,7 +553,7 @@ export class World {
         let cr2: number = cl2 + cw2 - 1;
         let cb2: number = ct2 + ch2 - 1;
 
-        let cyOut;
+        let cyOut: boolean;
 
         for (let cy = ct1; cy <= cb1; cy++) {
           cyOut = Number(cy) < ct2 || cy > cb2;
@@ -577,8 +576,8 @@ export class World {
 
       rect.x = x2;
       rect.y = y2;
-      rect.w = w2;
-      rect.h = h2;
+      rect.w = w2!;
+      rect.h = h2!;
     }
   }
 
