@@ -201,6 +201,28 @@ describe('Bump world', () => {
       ); // TODO: Figure out why this passes with a different order of items compared to the original
       expect(world.querySegment(26, 5, 22, 5)).toEqual(['c']);
     });
+
+    it('should filter out items when filter does not return true for them', () => {
+      const world = Bump.newWorld(64);
+
+      const a = world.add('a', 5, 0, 5, 10);
+      const b = world.add('b', 15, 0, 5, 10);
+      const c = world.add('c', 25, 0, 5, 10);
+
+      const filter = (other: any) => other != a && other != c;
+
+      expect(world.querySegment(0, 5, 11, 5, filter)).toEqual([]);
+      expect(world.querySegment(0, 5, 17, 5, filter)).toEqual(['b']);
+      expect(world.querySegment(0, 5, 30, 5, filter)).toEqual(['b']);
+      expect(world.querySegment(17, 5, 26, 5, filter)).toEqual(['b']);
+      expect(world.querySegment(22, 5, 26, 5, filter)).toEqual([]);
+
+      expect(world.querySegment(11, 5, 0, 5, filter)).toEqual([]);
+      expect(world.querySegment(17, 5, 0, 5, filter)).toEqual(['b']);
+      expect(world.querySegment(30, 5, 0, 5, filter)).toEqual(['b']);
+      expect(world.querySegment(26, 5, 17, 5, filter)).toEqual(['b']);
+      expect(world.querySegment(26, 5, 22, 5, filter)).toEqual([]);
+    });
   });
 
   describe('getItems', () => {
