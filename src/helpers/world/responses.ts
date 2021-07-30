@@ -74,7 +74,7 @@ export function slide(
 
 export function bounce(
   world: World,
-  col: any,
+  collision: any,
   x: number,
   y: number,
   w: number,
@@ -83,31 +83,29 @@ export function bounce(
   goalY?: number,
   filter?: any
 ): { x: number; y: number; collisions: any[] } {
-  let _goalX: number = goalX || x;
-  let _goalY: number = goalY || y;
+  const _goalX: number = isNaN(goalX as number) ? x : goalX!;
+  const _goalY: number = isNaN(goalY as number) ? y : goalY!;
 
-  const { touch, move } = col;
+  const { touch, move } = collision;
 
-  let [tx, ty] = [touch.x, touch.y];
-
-  let bx = tx;
-  let by = ty;
+  let bx = touch.x;
+  let by = touch.y;
 
   if (move.x !== 0 || move.y !== 0) {
-    let bnx = _goalX - tx;
-    let bny = _goalY - ty;
+    let bnx = _goalX - touch.x;
+    let bny = _goalY - touch.y;
 
-    if (col.normal.x === 0) bny = -bny;
+    if (collision.normal.x === 0) bny = -bny;
     else bnx = -bnx;
 
-    bx = tx + bnx;
-    by = ty + bny;
+    bx = touch.x + bnx;
+    by = touch.y + bny;
   }
 
-  col.bounce = { x: bx, y: by };
+  collision.bounce = { x: bx, y: by };
 
   const collisions = world.project(
-    col.item,
+    collision.item,
     touch.x,
     touch.y,
     w,

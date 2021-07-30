@@ -313,7 +313,7 @@ describe('Bump world', () => {
     });
 
     // TODO: Fix this test: It never exits
-    it.skip('when bouncing should bounce on each element', () => {
+    it.only('when bouncing should bounce on each element', () => {
       const world = Bump.newWorld(64);
 
       const itemID = world.add('TEST_ITEM1', 0, 0, 1, 1);

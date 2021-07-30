@@ -39,7 +39,6 @@ function sortByWeight(a: any, b: any): boolean {
   return a.weight < b.weight;
 }
 
-// TODO: FIx this. it should return an array but returns an object with number keys
 function getCellsTouchedBySegment(
   self: World,
   x1: number,
@@ -558,7 +557,7 @@ export class World {
         for (let cy = ct1; cy <= cb1; cy++) {
           cyOut = Number(cy) < ct2 || cy > cb2;
 
-          for (let cx = cl1; cx <= cr1; cy++)
+          for (let cx = cl1; cx <= cr1; cx++)
             if (cyOut || cx < cl2 || cx > cr2)
               this.removeItemFromCell(itemID, cx, cy);
         }
@@ -600,6 +599,9 @@ export class World {
     goalY: number,
     filter?: any
   ): { x: number; y: number; collisions: any[] } {
+    let _goalX: number = goalX;
+    let _goalY: number = goalY;
+
     const checkFilter: any = filter || defaultFilter;
 
     let visited: { [itemID: string]: boolean } = {};
@@ -622,14 +624,6 @@ export class World {
       goalY,
       visitedFilter
     );
-
-    // Current broken test prints otherRect = {h:2, w:1,x:0, y:2} i lua
-    // require('console').dir(
-    //   {
-    //     projectedCollisions,
-    //   },
-    //   { depth: null }
-    // );
 
     let collisionsCounter = projectedCollisions?.length || 0;
 
@@ -655,20 +649,14 @@ export class World {
         visitedFilter
       );
 
-      // This prints once in TS and once in lua. Whilelen is 0 in lua
-      // require('console').dir({
-      //   afterCols: collisions,
-      //   whillelen: projectedCollisions?.length,
-      // });
-
-      goalX = x;
-      goalY = y;
+      _goalX = x;
+      _goalY = y;
       projectedCollisions = collisions;
 
       collisionsCounter = collisions?.length || 0;
     }
 
-    return { x: goalX, y: goalY, collisions: detectedCollisions };
+    return { x: _goalX, y: _goalY, collisions: detectedCollisions };
   }
 }
 
