@@ -35,6 +35,28 @@ export interface Rect {
   h: number;
 }
 
+export interface Coords {
+  x: number;
+  y: number;
+}
+
+export interface Collision {
+  other: any | null | undefined;
+  item: string | null | undefined;
+  type?: 'touch' | 'cross' | 'slide' | 'bounce' | string;
+  overlaps: boolean;
+  ti: number;
+  move: Coords;
+  normal: Coords;
+  touch: Coords;
+  itemRect: Rect;
+  otherRect: Rect;
+  slide?: Coords;
+  bounce?: Coords;
+}
+
+export type Cell = any;
+
 function sortByWeight(a: any, b: any): boolean {
   return a.weight < b.weight;
 }
@@ -45,7 +67,7 @@ function getCellsTouchedBySegment(
   y1: number,
   x2: number,
   y2: number
-): any[] {
+): Cell[] {
   let cells: any[] = [];
   let cellsLen = 0;
   let visited: { [itemID: string]: boolean } = {};
@@ -77,7 +99,7 @@ function getInfoAboutItemsTouchedBySegment(
   x2: number,
   y2: number,
   filter?: any
-): any[] {
+): { item: string; ti1: number; ti2: number; weight: number | null }[] {
   let cells = getCellsTouchedBySegment(self, x1, y1, x2, y2);
   let rect, l, t, w, h, ti1, ti2;
 
@@ -148,7 +170,7 @@ function getInfoAboutItemsTouchedBySegment(
   return itemInfo;
 }
 
-function tableSort(table: any, fn: (...args: any[]) => any) {
+function tableSort(table: any[], fn: (...args: any[]) => any) {
   return table.sort(fn);
 }
 
@@ -188,7 +210,6 @@ export class World {
     return response;
   }
 
-  // TODO: Fiure out why this returns N Collisions for N items in the original bump
   project(
     itemID: string | null,
     x: number,
@@ -197,17 +218,16 @@ export class World {
     h: number,
     goalX?: number,
     goalY?: number,
-    filter?: any
-  ): any[] {
-    // TODO: Should return `Collision[]`
+    filter?: (...args: any[]) => any
+  ): Collision[] {
     assertIsRect(x, y, w, h);
 
     const _goalX = isNaN(goalX as number) ? x : goalX!;
     const _goalY = isNaN(goalY as number) ? y : goalY!;
 
-    filter = filter || defaultFilter;
+    const _filter = filter || defaultFilter;
 
-    let collisions: any[] = [];
+    let collisions: Collision[] = [];
 
     let visited: { [itemID: string]: boolean } = {};
 
@@ -234,12 +254,12 @@ export class World {
       if (!visited[other]) {
         visited[other] = true;
 
-        const responseName: string = filter(itemID, other);
+        const responseName: string = _filter(itemID, other);
 
         if (responseName) {
           let otherRect = this.getRect(other);
 
-          let collision: any = rect_detectCollision(
+          let collision: Collision | undefined = rect_detectCollision(
             x,
             y,
             w,
@@ -282,12 +302,7 @@ export class World {
   }
 
   getItems(): any[] {
-    let items: any[] = [];
-    let len = 0;
-
-    for (const rect of Object.keys(this.rects)) items[len++] = this.rects[rect];
-
-    return items;
+    return Object.keys(this.rects).map((rectID) => this.rects[rectID]);
   }
 
   countItems(): number {
@@ -444,9 +459,18 @@ export class World {
     y1: number,
     x2: number,
     y2: number,
-    filter: any
-  ): any[] {
-    let itemInfo = getInfoAboutItemsTouchedBySegment(
+    filter: (...args: any[]) => any
+  ): {
+    item: string;
+    ti1: number;
+    ti2: number;
+    weight: number | null;
+    x1: number;
+    x2: number;
+    y1: number;
+    y2: number;
+  }[] {
+    let itemInfo: any = getInfoAboutItemsTouchedBySegment(
       this,
       x1,
       y1,
@@ -458,12 +482,12 @@ export class World {
     let dx: number = x2 - x1;
     let dy: number = y2 - y1;
 
-    let info;
+    let info: any;
     let ti1: number;
     let ti2: number;
 
-    for (const itemID of itemInfo) {
-      info = itemInfo[itemID];
+    for (const item of itemInfo) {
+      info = item;
 
       ti1 = info.ti1;
       ti2 = info.ti2;
@@ -480,7 +504,7 @@ export class World {
 
   //- Main methods
 
-  add(itemID: string, x: number, y: number, w: number, h: number) {
+  add(itemID: string, x: number, y: number, w: number, h: number): string {
     let rect = this.rects[itemID];
 
     if (rect) throw new Error(`Item "${itemID}" added to the world twice.`);
@@ -498,7 +522,7 @@ export class World {
   }
 
   remove(itemID: string): void {
-    let itemRect = this.getRect(itemID);
+    const itemRect: Rect = this.getRect(itemID);
 
     this.rects[itemID] = null;
 
@@ -584,8 +608,8 @@ export class World {
     itemID: string,
     goalX: number,
     goalY: number,
-    filter?: any
-  ): { x: number; y: number; collisions: any[] } {
+    filter?: (...args: any[]) => any
+  ): { x: number; y: number; collisions: Collision[] } {
     let { x, y, collisions } = this.check(itemID, goalX, goalY, filter);
 
     this.update(itemID, x, y);
@@ -597,8 +621,8 @@ export class World {
     itemID: string,
     goalX: number,
     goalY: number,
-    filter?: any
-  ): { x: number; y: number; collisions: any[] } {
+    filter?: (...args: any[]) => any
+  ): { x: number; y: number; collisions: Collision[] } {
     let _goalX: number = goalX;
     let _goalY: number = goalY;
 
@@ -610,11 +634,11 @@ export class World {
     const visitedFilter = (itm: any, other: any) =>
       !!visited[other] ? false : checkFilter(itm, other);
 
-    let detectedCollisions: any[] = [];
+    let detectedCollisions: Collision[] = [];
 
     let itemRect: Rect = this.getRect(itemID);
 
-    let projectedCollisions = this.project(
+    let projectedCollisions: Collision[] = this.project(
       itemID,
       itemRect.x,
       itemRect.y,
@@ -625,7 +649,7 @@ export class World {
       visitedFilter
     );
 
-    let collisionsCounter = projectedCollisions?.length || 0;
+    let collisionsCounter: number = projectedCollisions?.length || 0;
 
     while (collisionsCounter > 0) {
       let collision: any = projectedCollisions[0];
@@ -663,13 +687,7 @@ export class World {
 // Public library functions
 
 const bump = {
-  _VERSION: 'bumpTS v0.0.1',
-  _URL: 'https://github.com/hood/bump.ts',
-  _DESCRIPTION:
-    'A collision detection library for TypeScript. Ported from `bump.lua`.',
-  _LICENSE: `M.I.T.`,
-
-  newWorld: function(cellSize: number) {
+  newWorld: function(cellSize: number): World {
     cellSize = cellSize || 64;
 
     assertIsPositiveNumber(cellSize, 'cellSize');

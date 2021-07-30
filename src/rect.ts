@@ -1,3 +1,4 @@
+import { Collision, Coords, Rect } from '.';
 import { DELTA } from './constants';
 import nearest from './helpers/generic/nearest';
 
@@ -8,11 +9,10 @@ export function rect_getNearestCorner(
   h: number,
   px: number,
   py: number
-) {
-  return [nearest(px, x, x + w), nearest(py, y, y + h)];
+): Coords {
+  return { x: nearest(px, x, x + w), y: nearest(py, y, y + h) };
 }
 
-// TODO: THIS IS BROKEN RN
 // This is a generalized implementation of the liang-barsky algorithm, which also returns
 // the normals of the sides where the segment intersects.
 // Returns null if the segment never touches the rect
@@ -123,7 +123,7 @@ export function rect_getSegmentIntersectionIndices(
   return [_ti1, _ti2, nx1, ny1, nx2, ny2];
 }
 
-// //Calculates the minkowsky difference between 2 rects, which is another rect
+// //Calculates the Minkowsky difference between 2 rects, which is another rect
 export function rect_getDiff(
   x1: number,
   y1: number,
@@ -133,8 +133,13 @@ export function rect_getDiff(
   y2: number,
   w2: number,
   h2: number
-): [number, number, number, number] {
-  return [x2 - x1 - w1, y2 - y1 - h1, w1 + w2, h1 + h2];
+): Rect {
+  return {
+    x: x2 - x1 - w1,
+    y: y2 - y1 - h1,
+    w: w1 + w2,
+    h: h1 + h2,
+  };
 }
 
 export function rect_containsPoint(
@@ -189,51 +194,14 @@ export function rect_detectCollision(
   h2: number,
   goalX?: number,
   goalY?: number
-):
-  | undefined
-  | {
-      overlaps: boolean;
-      ti: number;
-      move: {
-        x: number;
-        y: number;
-      };
-      normal: {
-        x: number;
-        y: number;
-      };
-      touch: {
-        x: number;
-        y: number;
-      };
-      itemRect: {
-        x: number;
-        y: number;
-        w: number;
-        h: number;
-      };
-      otherRect: {
-        x: number;
-        y: number;
-        w: number;
-        h: number;
-      };
-      slide?: {
-        x: number;
-        y: number;
-      };
-      bounce?: {
-        x: number;
-        y: number;
-      };
-    } {
+): undefined | Partial<Collision> {
   const _goalX: number = isNaN(goalX!) ? x1 : goalX!;
   const _goalY: number = isNaN(goalY!) ? y1 : goalY!;
 
   let dx: number = _goalX - x1;
   let dy: number = _goalY - y1;
 
-  let [x, y, w, h] = rect_getDiff(x1, y1, w1, h1, x2, y2, w2, h2);
+  let { x, y, w, h } = rect_getDiff(x1, y1, w1, h1, x2, y2, w2, h2);
 
   let overlaps: boolean;
 
@@ -242,12 +210,12 @@ export function rect_detectCollision(
 
   // If the item was intersecting other
   if (rect_containsPoint(x, y, w, h, 0, 0)) {
-    let [px, py] = rect_getNearestCorner(x, y, w, h, 0, 0);
+    let { x: px, y: py } = rect_getNearestCorner(x, y, w, h, 0, 0);
 
-    let wi: number = Math.min(w1, Math.abs(px)); // // area of intersection
-    let hi: number = Math.min(h1, Math.abs(py)); // // area of intersection
+    let wi: number = Math.min(w1, Math.abs(px)); // area of intersection
+    let hi: number = Math.min(h1, Math.abs(py)); // area of intersection
 
-    ti = -wi * hi; // // ti is the negative area of intersection
+    ti = -wi * hi; // `ti` is the negative area of intersection
 
     overlaps = true;
   } else {
@@ -286,7 +254,7 @@ export function rect_detectCollision(
   if (overlaps!)
     if (dx === 0 && dy === 0) {
       //intersecting and not moving - use minimum displacement vector
-      let [px, py] = rect_getNearestCorner(x, y, w, h, 0, 0);
+      let { x: px, y: py } = rect_getNearestCorner(x, y, w, h, 0, 0);
 
       if (Math.abs(px) < Math.abs(py)) py = 0;
       else px = 0;
