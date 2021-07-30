@@ -312,8 +312,7 @@ describe('Bump world', () => {
       expect(world.getRect(itemID)).toEqual({ x: 1, y: 5, w: 1, h: 1 });
     });
 
-    // TODO: Fix this test: It never exits
-    it.only('when bouncing should bounce on each element', () => {
+    it('when bouncing should bounce on each element', () => {
       const world = Bump.newWorld(64);
 
       const itemID = world.add('TEST_ITEM1', 0, 0, 1, 1);
