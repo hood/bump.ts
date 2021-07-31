@@ -256,7 +256,10 @@ export class World {
 
         const responseName: string = _filter(itemID, other);
 
-        if (responseName) {
+        if (
+          responseName &&
+          /* why do I have to do this extra check? */ this.hasItem(other)
+        ) {
           let otherRect = this.getRect(other);
 
           let collision: Partial<Collision> | undefined = rect_detectCollision(
