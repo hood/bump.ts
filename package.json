@@ -1,8 +1,17 @@
 {
-  "version": "0.1.5",
+  "version": "0.1.6",
   "license": "MIT",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
+  "keywords": [
+    "bump",
+    "bump.ts",
+    "bump-ts",
+    "collision detection",
+    "gamedev",
+    "arcade",
+    "collisions"
+  ],
   "files": [
     "dist",
     "src"
@@ -32,7 +41,7 @@
     "trailingComma": "es5"
   },
   "name": "bump-ts",
-  "author": "Andrea Cappuccio",
+  "author": "Andrea Cappuccio <hood@null.net>",
   "module": "dist/bump-ts.esm.js",
   "size-limit": [
     {
