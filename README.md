@@ -1,8 +1,7 @@
 # bump.ts
-https://img.shields.io/npm/v/bump-ts
-https://img.shields.io/maintenance/yes/2021
-https://img.shields.io/github/issues-raw/hood/bump.ts
-
+![version](https://img.shields.io/npm/v/bump-ts)
+![maintenance](https://img.shields.io/maintenance/yes/2021)
+![open-issues](https://img.shields.io/github/issues-raw/hood/bump.ts)
 
 > A collision detection library for TypeScript. Ported from `bump.lua`.
 
