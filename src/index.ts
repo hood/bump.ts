@@ -259,7 +259,7 @@ export class World {
         if (responseName) {
           let otherRect = this.getRect(other);
 
-          let collision: Collision | undefined = rect_detectCollision(
+          let collision: Partial<Collision> | undefined = rect_detectCollision(
             x,
             y,
             w,
@@ -277,7 +277,7 @@ export class World {
             collision.item = itemID;
             collision.type = responseName;
 
-            collisions.push(collision);
+            collisions.push(collision as Collision);
           }
         }
       }
