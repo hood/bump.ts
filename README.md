@@ -2,7 +2,7 @@
 
 > A collision detection library for TypeScript. Ported from `bump.lua`.
 
-Bump.ts is a collision-detection library for axis-aligned rectangles. Its main features are:
+`bump.ts` is a collision-detection library for axis-aligned rectangles. Its main features are:
 
 * Axis-aligned bounding-box (AABB) collisions.
 * Tunneling - all items are treated as "bullets". The fact that we only use AABBs allows doing this fast.
@@ -11,7 +11,7 @@ Bump.ts is a collision-detection library for axis-aligned rectangles. Its main f
 * Can also return the items that touch a point, a segment or a rectangular zone.
 * "Gameistic" instead of realistic approach to collision detection.
 
-#### bump.ts is ideal for:
+#### `bump.ts` is ideal for:
 
 Tile-based games, and games where most entities can be represented as axis-aligned rectangles.
 Games which require some physics, but not a full realistic simulation - like a platformer.
