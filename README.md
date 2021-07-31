@@ -37,7 +37,7 @@ import Bump from 'bump-ts'
 // By default, the cell size is 64
 const world = Bump.newWorld(50)
 
-// insert both rectangles into bump
+// Insert two rectangles into bump
 world.add('A',   0, 0,    64, 256) // x,y, width, height
 world.add('B',   0, -100, 32, 32)
 
@@ -56,7 +56,6 @@ console.log(world.getRect('B'))
 // console.logs "Collision with A"
 for (const collision of collisions) // If more than one simultaneous collision, they are sorted out by proximity
   console.log(`Collision with ${collision.other}`)
-end
 
 // remove A and B from the world
 world.remove(A)
