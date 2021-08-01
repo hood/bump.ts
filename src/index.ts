@@ -378,11 +378,11 @@ export class World {
 
     let cell = row[cx];
 
-    cell.items[itemID] = null;
+    delete cell.items[itemID];
 
     cell.itemCount--;
 
-    if (cell.itemCount === 0) this.nonEmptyCells[cell] = null;
+    if (cell.itemCount === 0) delete this.nonEmptyCells[cell];
 
     return true;
   }

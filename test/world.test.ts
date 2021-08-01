@@ -158,6 +158,26 @@ describe('Bump world', () => {
 
       expect(world['rects'].hasOwnProperty(itemID)).toBe(false);
     });
+
+    it("should remove the item ID from the containing world's cell", () => {
+      const world = Bump.newWorld(64);
+
+      const itemID = world.add('TEST_ITEM', 0, 0, 10, 10);
+
+      expect(
+        world['rows'].some((cols) =>
+          cols.some((cell) => cell.items.hasOwnProperty(itemID))
+        )
+      ).toBe(true);
+
+      world.remove(itemID);
+
+      expect(
+        world['rows'].some((cols) =>
+          cols.some((cell) => cell.items.hasOwnProperty(itemID))
+        )
+      ).toBe(false);
+    });
   });
 
   // describe('toCell', () => {});
