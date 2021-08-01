@@ -527,7 +527,7 @@ export class World {
   remove(itemID: string): void {
     const itemRect: Rect = JSON.parse(JSON.stringify(this.getRect(itemID)));
 
-    this.rects.delete(itemID);
+    delete this.rects[itemID];
 
     let [cl, ct, cw, ch] = grid_toCellRect(
       this.cellSize,
