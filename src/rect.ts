@@ -201,7 +201,7 @@ export function rect_detectCollision(
   let dx: number = _goalX - x1;
   let dy: number = _goalY - y1;
 
-  let { x, y, w, h } = rect_getDiff(x1, y1, w1, h1, x2, y2, w2, h2);
+  const { x, y, w, h } = rect_getDiff(x1, y1, w1, h1, x2, y2, w2, h2);
 
   let overlaps: boolean;
 
@@ -232,9 +232,12 @@ export function rect_detectCollision(
       Number.MAX_SAFE_INTEGER
     );
 
+    // To make the compiler stop complaining
+    ti1 = ti1!;
+
     // item tunnels into other
     if (
-      ti1 &&
+      !isNaN(ti1) &&
       ti1 < 1 &&
       Math.abs(ti1 - (ti2 || 0)) >= DELTA && // special case for rect going through another rect's corner
       (0 < ti1 + DELTA || (0 === ti1 && (ti2 || 0) > 0))
@@ -247,7 +250,7 @@ export function rect_detectCollision(
     }
   }
 
-  if (!ti!) return;
+  if (isNaN(ti!)) return;
 
   let tx, ty;
 

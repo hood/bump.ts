@@ -646,6 +646,7 @@ export class World {
 
     let itemRect: Rect = this.getRect(itemID);
 
+    // this is returning an empty array. WHY?
     let projectedCollisions: Collision[] = this.project(
       itemID,
       itemRect.x,
@@ -668,7 +669,6 @@ export class World {
 
       let response = this.getResponseByName(collision.type);
 
-      // TODO: What if `response` is not defined?
       const { x, y, collisions } = response(
         this,
         collision,

@@ -218,8 +218,6 @@ describe('Bump world', () => {
       const c = world.add('c', 50, 0, 10, 10);
       const d = world.add('d', 90, 0, 10, 10);
 
-      // TODO: Figure out why had to invert the expected results' order to make the test pass.
-      // expect(world.queryRect(55, 5, 20, 20, () => true)).toEqual(['b', 'c']);
       expect(world.queryRect(55, 5, 20, 20, () => true)).toEqual(['c', 'b']);
       expect(world.queryRect(0, 5, 100, 20)).toEqual(['a', 'c', 'b', 'd']);
     });
