@@ -22,12 +22,6 @@ function defaultFilter(): string {
   return 'slide';
 }
 
-//////////////////////////////////////////
-//World
-//////////////////////////////////////////
-
-//Private functions and methods
-
 export interface Rect {
   x: number;
   y: number;
@@ -57,8 +51,8 @@ export interface Collision {
 
 export type Cell = { ID: string; x: number; y: number; items: any[] };
 
-function sortByWeight(a: any, b: any): boolean {
-  return a.weight < b.weight;
+function sortByWeight(a: any, b: any): number {
+  return a.weight - b.weight;
 }
 
 function getCellsTouchedBySegment(
@@ -97,7 +91,7 @@ function getInfoAboutItemsTouchedBySegment(
   y1: number,
   x2: number,
   y2: number,
-  filter?: any
+  filter?: (other?: string) => boolean
 ): { item: string; ti1: number; ti2: number; weight: number | null }[] {
   let cells = getCellsTouchedBySegment(self, x1, y1, x2, y2);
   let rect, l, t, w, h, ti1, ti2;
@@ -164,16 +158,8 @@ function getInfoAboutItemsTouchedBySegment(
       }
   }
 
-  tableSort(itemInfo, sortByWeight);
-
-  return itemInfo;
+  return itemInfo.sort(sortByWeight);
 }
-
-function tableSort(table: any[], fn: (...args: any[]) => any) {
-  return table.sort(fn);
-}
-
-//Misc Public Methods
 
 export class World {
   responses: { [responseID: string]: any } = {};
@@ -285,9 +271,7 @@ export class World {
       }
     }
 
-    tableSort(collisions, sortByTiAndDistance) /* .reverse() */;
-
-    return collisions;
+    return collisions.sort(sortByTiAndDistance);
   }
 
   countCells(): number {
@@ -354,7 +338,7 @@ export class World {
     cw: number,
     ch: number
   ): { [itemID: string]: boolean } {
-    let items_dict: { [itemID: string]: boolean } = {};
+    const items_dict: { [itemID: string]: boolean } = {};
 
     for (let cy = ct; cy <= ct + ch - 1; cy++) {
       let row = this.rows[cy];
@@ -397,46 +381,62 @@ export class World {
     return grid_toCell(this.cellSize, x, y);
   }
 
-  //- Query methods
-  queryRect(x: number, y: number, w: number, h: number, filter: any): any[] {
+  queryRect(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    filter?: (other?: string) => boolean
+  ): string[] {
     assertIsRect(x, y, w, h);
 
-    let [cl, ct, cw, ch] = grid_toCellRect(this.cellSize, x, y, w, h);
-    let dictItemsInCellRect = this.getDictItemsInCellRect(cl, ct, cw, ch);
+    const [cl, ct, cw, ch] = grid_toCellRect(this.cellSize, x, y, w, h);
+    const dictItemsInCellRect = this.getDictItemsInCellRect(cl, ct, cw, ch);
 
-    let items: any[] = [];
+    const items: string[] = [];
 
-    let rect: Rect;
-
-    for (const itemID of Object.keys(dictItemsInCellRect)) {
-      rect = this.rects[itemID];
-
+    for (const itemID of Object.keys(dictItemsInCellRect))
       if (
         (!filter || filter(itemID)) &&
-        rect_isIntersecting(x, y, w, h, rect.x, rect.y, rect.w, rect.h)
+        rect_isIntersecting(
+          x,
+          y,
+          w,
+          h,
+          this.rects[itemID].x,
+          this.rects[itemID].y,
+          this.rects[itemID].w,
+          this.rects[itemID].h
+        )
       )
         items.push(itemID);
-    }
 
     return items;
   }
 
-  queryPoint(x: number, y: number, filter: any): string[] {
-    let [cx, cy] = this.toCell(x, y);
-    let dictItemsInCellRect = this.getDictItemsInCellRect(cx, cy, 1, 1);
+  queryPoint(
+    x: number,
+    y: number,
+    filter?: (other?: string) => boolean
+  ): string[] {
+    const [cx, cy] = this.toCell(x, y);
+    const dictItemsInCellRect = this.getDictItemsInCellRect(cx, cy, 1, 1);
 
-    let items: string[] = [];
-    let rect: Rect;
+    const items: string[] = [];
 
-    for (const itemID of Object.keys(dictItemsInCellRect)) {
-      rect = this.rects[itemID];
-
+    for (const itemID of Object.keys(dictItemsInCellRect))
       if (
         (!filter || filter(itemID)) &&
-        rect_containsPoint(rect.x, rect.y, rect.w, rect.h, x, y)
+        rect_containsPoint(
+          this.rects[itemID].x,
+          this.rects[itemID].y,
+          this.rects[itemID].w,
+          this.rects[itemID].h,
+          x,
+          y
+        )
       )
         items.push(itemID);
-    }
 
     return items;
   }
@@ -446,7 +446,7 @@ export class World {
     y1: number,
     x2: number,
     y2: number,
-    filter?: any
+    filter?: (other?: string) => boolean
   ): string[] {
     const itemsInfo = getInfoAboutItemsTouchedBySegment(
       this,
@@ -457,7 +457,7 @@ export class World {
       filter
     );
 
-    let items: string[] = [];
+    const items: string[] = [];
 
     if (itemsInfo) for (const itemInfo of itemsInfo) items.push(itemInfo.item);
 
@@ -469,7 +469,7 @@ export class World {
     y1: number,
     x2: number,
     y2: number,
-    filter: (...args: any[]) => any
+    filter?: (other?: string) => boolean
   ): {
     item: string;
     ti1: number;
@@ -511,8 +511,6 @@ export class World {
 
     return itemInfo;
   }
-
-  //- Main methods
 
   add(itemID: string, x: number, y: number, w: number, h: number): string {
     let rect: Rect = this.rects[itemID];

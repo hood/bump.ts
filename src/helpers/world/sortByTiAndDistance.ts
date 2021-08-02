@@ -1,18 +1,21 @@
+import { Rect } from '../..';
 import { rect_getSquareDistance } from '../../rect';
 
 interface Item {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  ti: any;
-  itemRect: any;
-  otherRect: any;
+  // x: number;
+  // y: number;
+  // w: number;
+  // h: number;
+  ti: number;
+  itemRect: Rect;
+  otherRect: Rect;
 }
 
-export default function sortByTiAndDistance(a: Item, b: Item): boolean {
-  if (a.ti == b.ti) {
-    const [ir, ar, br] = [a.itemRect, a.otherRect, b.otherRect];
+export default function sortByTiAndDistance(a: Item, b: Item): number {
+  if (a.ti === b.ti) {
+    const ir: Rect = a.itemRect;
+    const ar: Rect = a.otherRect;
+    const br: Rect = b.otherRect;
 
     const ad = rect_getSquareDistance(
       ir.x,
@@ -35,8 +38,8 @@ export default function sortByTiAndDistance(a: Item, b: Item): boolean {
       br.h
     );
 
-    return ad < bd;
+    return ad - bd;
   }
 
-  return a.ti < b.ti;
+  return a.ti - b.ti;
 }

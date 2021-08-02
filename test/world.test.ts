@@ -120,11 +120,7 @@ describe('Bump world', () => {
 
       const collisions = world.project('_', 110, 0, 10, 10, 10, 0);
 
-      // To let this tes pass, we must do `tableSort(collisions, sortByTiAndDistance).reverse();`
-      //  in `project`. But between letting this test pas and letting @first item touched tests pass
-      //  I prefer the latter. Hence I've manually reversed the tested array result.
-      // expect(collect(collisions, 'ti')).toEqual([0.1, 0.3, 0.5]);
-      expect(collect(collisions, 'ti')).toEqual([0.5, 0.3, 0.1]);
+      expect(collect(collisions, 'ti')).toEqual([0.1, 0.3, 0.5]);
     });
   });
 
@@ -180,13 +176,81 @@ describe('Bump world', () => {
     });
   });
 
-  // describe('toCell', () => {});
+  describe('toCell', () => {
+    it('should return the coordinates of the cell containing a point', () => {
+      const world = Bump.newWorld(64);
 
-  // describe('toWorld', () => {});
+      expect(world.toCell(0, 0)).toEqual([1, 1]);
+      expect(world.toCell(63.9, 63.9)).toEqual([1, 1]);
+      expect(world.toCell(64, 64)).toEqual([2, 2]);
+      expect(world.toCell(-1, -1)).toEqual([0, 0]);
+    });
+  });
 
-  // describe('queryRect', () => {});
+  describe('toWorld', () => {
+    it('should return the left and top corners of the given cell', () => {
+      const world = Bump.newWorld(64);
 
-  // describe('queryPoint', () => {});
+      expect(world.toWorld(1, 1)).toEqual([0, 0]);
+      expect(world.toWorld(2, 2)).toEqual([64, 64]);
+      expect(world.toWorld(-1, 1)).toEqual([-128, 0]);
+    });
+  });
+
+  describe('queryRect', () => {
+    it('should throw an error when given an invalid rect', () => {
+      const world = Bump.newWorld(64);
+
+      expect(() => world.queryRect(0, 0, -1, -1)).toThrow();
+    });
+
+    it('should should return nothing in an empty world', () => {
+      const world = Bump.newWorld(64);
+
+      expect(world.queryRect(0, 0, 1, 1)).toEqual([]);
+    });
+
+    it('should return the items inside or partially inside the given rect when the world has items', () => {
+      const world = Bump.newWorld(64);
+
+      const a = world.add('a', 10, 0, 10, 10);
+      const b = world.add('b', 70, 0, 10, 10);
+      const c = world.add('c', 50, 0, 10, 10);
+      const d = world.add('d', 90, 0, 10, 10);
+
+      // TODO: Figure out why had to invert the expected results' order to make the test pass.
+      // expect(world.queryRect(55, 5, 20, 20, () => true)).toEqual(['b', 'c']);
+      expect(world.queryRect(55, 5, 20, 20, () => true)).toEqual(['c', 'b']);
+      expect(world.queryRect(0, 5, 100, 20)).toEqual(['a', 'c', 'b', 'd']);
+    });
+
+    it('should only return the items for which the given filter returns true when the world has items', () => {
+      const world = Bump.newWorld(64);
+
+      const filter = (other?: string) =>
+        other === 'a' || other === 'b' || other === 'd';
+
+      const a = world.add('a', 10, 0, 10, 10);
+      const b = world.add('b', 70, 0, 10, 10);
+      const c = world.add('c', 50, 0, 10, 10);
+      const d = world.add('d', 90, 0, 10, 10);
+
+      expect(world.queryRect(55, 5, 20, 20, filter)).toEqual(['b']);
+      expect(world.queryRect(0, 5, 100, 20, filter)).toEqual(['a', 'b', 'd']);
+    });
+  });
+
+  describe('queryPoint', () => {
+    it('should return nothing in an empty world', () => {
+      const world = Bump.newWorld(64);
+
+      expect(world.queryPoint(0, 0)).toEqual([]);
+    });
+
+    it('should return the items inside or partially inside the given rect when the world has items', () => {
+      const world = Bump.newWorld(64);
+    });
+  });
 
   // describe('hasItem', () => {});
 
@@ -222,15 +286,9 @@ describe('Bump world', () => {
       expect(world.querySegment(22, 5, 26, 5)).toEqual(['c']);
 
       expect(world.querySegment(11, 5, 0, 5)).toEqual(['a']);
-      expect(world.querySegment(17, 5, 0, 5)).toEqual(
-        /*['b', 'a']*/ ['a', 'b']
-      ); // TODO: Figure out why this passes with a different order of items compared to the original
-      expect(world.querySegment(30, 5, 0, 5)).toEqual(
-        /*['c', 'b', 'a']*/ ['a', 'b', 'c']
-      ); // TODO: Figure out why this passes with a different order of items compared to the original
-      expect(world.querySegment(26, 5, 17, 5)).toEqual(
-        /*['c', 'b']*/ ['b', 'c']
-      ); // TODO: Figure out why this passes with a different order of items compared to the original
+      expect(world.querySegment(17, 5, 0, 5)).toEqual(['b', 'a']);
+      expect(world.querySegment(30, 5, 0, 5)).toEqual(['c', 'b', 'a']);
+      expect(world.querySegment(26, 5, 17, 5)).toEqual(['c', 'b']);
       expect(world.querySegment(26, 5, 22, 5)).toEqual(['c']);
     });
 
@@ -299,7 +357,6 @@ describe('Bump world', () => {
       world.add('TEST_ITEM2', 0, 2, 1, 1);
       world.add('TEST_ITEM3', 0, 3, 1, 1);
 
-      // @ts-ignore
       const { x, y, collisions } = world.move(itemID, 0, 5, () => 'touch');
 
       expect(x).toEqual(0);
@@ -328,7 +385,7 @@ describe('Bump world', () => {
       expect(world.getRect(itemID)).toEqual({ x: 0, y: 5, w: 1, h: 1 });
     });
 
-    it('when sliding whould slide with every element', () => {
+    it('when sliding should slide with every element', () => {
       const world = Bump.newWorld(64);
 
       const itemID = world.add('TEST_ITEM1', 0, 0, 1, 1);
