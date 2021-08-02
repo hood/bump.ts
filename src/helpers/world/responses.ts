@@ -1,16 +1,16 @@
 import { Coords, World } from '../../index';
 
-// type ResponseType = (
-//   world: World,
-//   col: any,
-//   x: number,
-//   y: number,
-//   w: number,
-//   h: number,
-//   goalX: number,
-//   goalY: number,
-//   filter: any
-// ) => [number, number, any, number];
+type ResponseType = (
+  world: World,
+  col: any,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  goalX: number,
+  goalY: number,
+  filter: any
+) => [number, number, any, number];
 
 export function touch(
   _world: World,

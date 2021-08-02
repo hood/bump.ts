@@ -55,7 +55,7 @@ export interface Collision {
   bounce?: Coords;
 }
 
-export type Cell = any | { ID: string; x: number; y: number; items: any[] };
+export type Cell = { ID: string; x: number; y: number; items: any[] };
 
 function sortByWeight(a: any, b: any): boolean {
   return a.weight < b.weight;
@@ -68,8 +68,7 @@ function getCellsTouchedBySegment(
   x2: number,
   y2: number
 ): Cell[] {
-  let cells: any[] = [];
-  let cellsLen = 0;
+  let cells: Cell[] = [];
   let visited: { [itemID: string]: boolean } = {};
 
   grid_traverse(self.cellSize, x1, y1, x2, y2, function(
@@ -82,11 +81,11 @@ function getCellsTouchedBySegment(
 
     let cell = row[cx];
 
-    if (!cell || visited[cell]) return;
+    if (!cell || visited[cell.ID]) return;
 
-    visited[cell] = true;
-    cellsLen++;
-    cells[cellsLen] = cell;
+    visited[cell.ID] = true;
+
+    cells.push(cell);
   });
 
   return cells;
@@ -180,8 +179,8 @@ export class World {
   responses: { [responseID: string]: any } = {};
   cellSize: number = 0;
   rows: any[][];
-  rects: { [itemID: string]: any };
-  nonEmptyCells: any;
+  rects: { [itemID: string]: Rect };
+  nonEmptyCells: { [cellID: string]: boolean };
 
   constructor(input: {
     cellSize: number;
@@ -304,7 +303,7 @@ export class World {
     return !!this.rects[item];
   }
 
-  getItems(): any[] {
+  getItems(): Rect[] {
     return Object.keys(this.rects).map((rectID) => this.rects[rectID]);
   }
 
@@ -317,16 +316,17 @@ export class World {
 
     const row = this.rows[cy];
 
-    row[cx] = row[cx] || {
-      ID: Math.ceil(Math.random() * Date.now()).toString(36),
-      x: cx,
-      y: cy,
-      items: {},
-    };
+    // Initialize a cell if no cell is present at this point
+    if (!row[cx])
+      row[cx] = {
+        ID: `Cell_${Math.ceil(Math.random() * Date.now()).toString(36)}`,
+        x: cx,
+        y: cy,
+        items: {},
+      };
 
     const cell = row[cx];
 
-    // FIXME: cannot index with an object
     this.nonEmptyCells[cell.ID] = true;
 
     if (!cell.items[itemID]) cell.items[itemID] = true;
@@ -383,7 +383,8 @@ export class World {
 
     delete cell.items[itemID];
 
-    if (Object.keys(cell.items)?.length === 0) delete this.nonEmptyCells[cell];
+    if (Object.keys(cell.items)?.length === 0)
+      delete this.nonEmptyCells[cell.ID];
 
     return true;
   }
@@ -405,7 +406,7 @@ export class World {
 
     let items: any[] = [];
 
-    let rect;
+    let rect: Rect;
 
     for (const itemID of Object.keys(dictItemsInCellRect)) {
       rect = this.rects[itemID];
@@ -420,13 +421,12 @@ export class World {
     return items;
   }
 
-  queryPoint(x: number, y: number, filter: any): any[] {
+  queryPoint(x: number, y: number, filter: any): string[] {
     let [cx, cy] = this.toCell(x, y);
     let dictItemsInCellRect = this.getDictItemsInCellRect(cx, cy, 1, 1);
 
-    let items: any[] = [];
-
-    let rect: any;
+    let items: string[] = [];
+    let rect: Rect;
 
     for (const itemID of Object.keys(dictItemsInCellRect)) {
       rect = this.rects[itemID];
@@ -441,7 +441,13 @@ export class World {
     return items;
   }
 
-  querySegment(x1: number, y1: number, x2: number, y2: number, filter?: any) {
+  querySegment(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    filter?: any
+  ): string[] {
     const itemsInfo = getInfoAboutItemsTouchedBySegment(
       this,
       x1,
@@ -451,7 +457,7 @@ export class World {
       filter
     );
 
-    let items: any[] = [];
+    let items: string[] = [];
 
     if (itemsInfo) for (const itemInfo of itemsInfo) items.push(itemInfo.item);
 
@@ -509,7 +515,7 @@ export class World {
   //- Main methods
 
   add(itemID: string, x: number, y: number, w: number, h: number): string {
-    let rect = this.rects[itemID];
+    let rect: Rect = this.rects[itemID];
 
     if (rect) throw new Error(`Item "${itemID}" added to the world twice.`);
 
