@@ -363,7 +363,7 @@ export class World {
         for (let cx = cl; cx <= cl + cw - 1; cx++) {
           let cell = row[cx];
 
-          if (Object.keys(cell?.items)?.length > 0)
+          if (cell?.items && Object.keys(cell.items)?.length > 0)
             // no cell.itemCount > 1 because tunneling
             for (const itemID of Object.keys(cell.items))
               items_dict[itemID] = true;
