@@ -55,7 +55,7 @@ export interface Collision {
   bounce?: Coords;
 }
 
-export type Cell = any;
+export type Cell = any | { ID: string; x: number; y: number; items: any[] };
 
 function sortByWeight(a: any, b: any): boolean {
   return a.weight < b.weight;
@@ -317,16 +317,19 @@ export class World {
 
     const row = this.rows[cy];
 
-    row[cx] = row[cx] || { itemCount: 0, x: cx, y: cy, items: {} };
+    row[cx] = row[cx] || {
+      ID: Math.ceil(Math.random() * Date.now()).toString(36),
+      x: cx,
+      y: cy,
+      items: {},
+    };
 
     const cell = row[cx];
 
-    this.nonEmptyCells[cell] = true;
+    // FIXME: cannot index with an object
+    this.nonEmptyCells[cell.ID] = true;
 
-    if (!cell.items[itemID]) {
-      cell.items[itemID] = true;
-      cell.itemCount++;
-    }
+    if (!cell.items[itemID]) cell.items[itemID] = true;
   }
 
   getRect(itemID: string): Rect {
@@ -360,7 +363,7 @@ export class World {
         for (let cx = cl; cx <= cl + cw - 1; cx++) {
           let cell = row[cx];
 
-          if (cell?.itemCount > 0)
+          if (Object.keys(cell?.items)?.length > 0)
             // no cell.itemCount > 1 because tunneling
             for (const itemID of Object.keys(cell.items))
               items_dict[itemID] = true;
@@ -380,9 +383,7 @@ export class World {
 
     delete cell.items[itemID];
 
-    cell.itemCount--;
-
-    if (cell.itemCount === 0) delete this.nonEmptyCells[cell];
+    if (Object.keys(cell.items)?.length === 0) delete this.nonEmptyCells[cell];
 
     return true;
   }
