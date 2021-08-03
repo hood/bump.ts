@@ -653,8 +653,8 @@ export class World {
       itemRect.y,
       itemRect.w,
       itemRect.h,
-      goalX,
-      goalY,
+      _goalX,
+      _goalY,
       visitedFilter
     );
 
@@ -676,8 +676,8 @@ export class World {
         itemRect.y,
         itemRect.w,
         itemRect.h,
-        goalX,
-        goalY,
+        _goalX,
+        _goalY,
         visitedFilter
       );
 

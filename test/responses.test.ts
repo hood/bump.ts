@@ -30,10 +30,10 @@ function touch(
   );
 
   return [
-    collision!.touch.x,
-    collision!.touch.y,
-    collision!.normal.x,
-    collision!.normal.y,
+    collision!.touch!.x,
+    collision!.touch!.y,
+    collision!.normal!.x,
+    collision!.normal!.y,
   ];
 }
 
@@ -65,10 +65,10 @@ function slide(
   Bump.responses.slide(world, collision, x, y, w, h, goalX!, goalY!);
 
   return [
-    collision!.touch.x,
-    collision!.touch.y,
-    collision!.normal.x,
-    collision!.normal.y,
+    collision!.touch!.x,
+    collision!.touch!.y,
+    collision!.normal!.x,
+    collision!.normal!.y,
     collision!['slide']!.x!,
     collision!['slide']!.y!,
   ];
@@ -102,10 +102,10 @@ function bounce(
   Bump.responses.bounce(world, collision, x, y, w, h, goalX, goalY);
 
   return [
-    collision!.touch.x,
-    collision!.touch.y,
-    collision!.normal.x,
-    collision!.normal.y,
+    collision!.touch!.x,
+    collision!.touch!.y,
+    collision!.normal!.x,
+    collision!.normal!.y,
     collision!['bounce']!.x!,
     collision!['bounce']!.y!,
   ];
