@@ -13,7 +13,7 @@ describe('World (new tests)', () => {
     expect(nextPosition.y).toEqual(4);
   });
 
-  it('should survive edge cases', () => {
+  it('should survive edge cases (walls to the R, B and BR of the moving item)', () => {
     const world = Bump.newWorld(64);
 
     const a = world.add('a', 4, 4, 4, 4);
@@ -30,5 +30,26 @@ describe('World (new tests)', () => {
     expect(nextPosition2.x).toEqual(4);
     expect(nextPosition2.y).toEqual(4);
     expect(nextPosition2.collisions.length).toEqual(2);
+  });
+
+  it(`should let an item smoothly scroll horizontally even when a wall is right below of it
+          Illustration:
+
+            a ->  *
+          b c d e f`, () => {
+    const world = Bump.newWorld(32);
+
+    const a = world.add('a', 4, 4, 4, 4);
+    const b = world.add('b', 0, 8, 4, 4);
+    const c = world.add('c', 4, 8, 4, 4);
+    const d = world.add('d', 8, 8, 4, 4);
+    const e = world.add('e', 12, 8, 4, 4);
+    const f = world.add('f', 16, 8, 4, 4);
+
+    const nextPosition = world.move(a, 16, 5, () => 'slide');
+
+    expect(nextPosition.x).toEqual(16);
+    expect(nextPosition.y).toEqual(4);
+    expect(nextPosition.collisions.length).toEqual(1);
   });
 });

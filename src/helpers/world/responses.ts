@@ -74,8 +74,8 @@ export function slide(
     _y,
     w,
     h,
-    goalX,
-    goalY,
+    _goalX,
+    _goalY,
     filter
   );
 
