@@ -1,4 +1,4 @@
-import { Collision, Coords, Rect } from '.';
+import { Collision, ICoords, IRect } from '.';
 import { DELTA } from './constants';
 import nearest from './helpers/generic/nearest';
 
@@ -9,7 +9,7 @@ export function rect_getNearestCorner(
   h: number,
   px: number,
   py: number
-): Coords {
+): ICoords {
   return { x: nearest(px, x, x + w), y: nearest(py, y, y + h) };
 }
 
@@ -133,7 +133,7 @@ export function rect_getDiff(
   y2: number,
   w2: number,
   h2: number
-): Rect {
+): IRect {
   return {
     x: x2 - x1 - w1,
     y: y2 - y1 - h1,

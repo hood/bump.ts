@@ -15,21 +15,34 @@ import {
   grid_traverse,
 } from './grid';
 import assertIsRect from './helpers/generic/assertIsRect';
-import { bounce, cross, slide, touch } from './helpers/world/responses';
+import {
+  bounce,
+  cross,
+  Response,
+  slide,
+  touch,
+} from './helpers/world/responses';
 import sortByTiAndDistance from './helpers/world/sortByTiAndDistance';
 
 function defaultFilter(): string {
   return 'slide';
 }
 
-export interface Rect {
+interface IItemInfo {
+  item: string;
+  ti1: number;
+  ti2: number;
+  weight: number;
+}
+
+export interface IRect {
   x: number;
   y: number;
   w: number;
   h: number;
 }
 
-export interface Coords {
+export interface ICoords {
   x: number;
   y: number;
 }
@@ -40,18 +53,23 @@ export interface Collision {
   type?: 'touch' | 'cross' | 'slide' | 'bounce' | string;
   overlaps: boolean;
   ti: number;
-  move: Coords;
-  normal: Coords;
-  touch: Coords;
-  itemRect: Rect;
-  otherRect: Rect;
-  slide?: Coords;
-  bounce?: Coords;
+  move: ICoords;
+  normal: ICoords;
+  touch: ICoords;
+  itemRect: IRect;
+  otherRect: IRect;
+  slide?: ICoords;
+  bounce?: ICoords;
 }
 
-export type Cell = { ID: string; x: number; y: number; items: any[] };
+export type Cell = {
+  ID: string;
+  x: number;
+  y: number;
+  items: { [itemID: string]: boolean };
+};
 
-function sortByWeight(a: any, b: any): number {
+function sortByWeight(a: IItemInfo, b: IItemInfo): number {
   return a.weight - b.weight;
 }
 
@@ -62,14 +80,14 @@ function getCellsTouchedBySegment(
   x2: number,
   y2: number
 ): Cell[] {
-  let cells: Cell[] = [];
-  let visited: { [itemID: string]: boolean } = {};
+  const cells: Cell[] = [];
+  const visited: { [itemID: string]: boolean } = {};
 
   grid_traverse(self.cellSize, x1, y1, x2, y2, function(
     cx: number,
     cy: number
   ) {
-    let row: any[] = self.rows[cy];
+    let row: Cell[] = self.rows[cy];
 
     if (!row) return;
 
@@ -97,7 +115,7 @@ function getInfoAboutItemsTouchedBySegment(
   let rect, l, t, w, h, ti1, ti2;
 
   let visited: { [itemID: string]: boolean } = {};
-  let itemInfo: any[] = [];
+  let itemInfo: IItemInfo[] = [];
 
   for (const cell of cells) {
     if (cell?.items)
@@ -148,8 +166,8 @@ function getInfoAboutItemsTouchedBySegment(
 
               itemInfo.push({
                 item: itemID,
-                ti1: ti1,
-                ti2: ti2,
+                ti1: ti1!,
+                ti2: ti2!,
                 weight: Math.min(tii0 || 0, tii1 || 0),
               });
             }
@@ -162,10 +180,10 @@ function getInfoAboutItemsTouchedBySegment(
 }
 
 export class World {
-  responses: { [responseID: string]: any } = {};
+  responses: { [responseID: string]: Response } = {};
   cellSize: number = 0;
-  rows: any[][];
-  rects: { [itemID: string]: Rect };
+  rows: Cell[][];
+  rects: { [itemID: string]: IRect };
   nonEmptyCells: { [cellID: string]: boolean };
 
   constructor(input: {
@@ -182,7 +200,10 @@ export class World {
     this.responses = input.responses;
   }
 
-  addResponse(name: string, response: any): void {
+  addResponse(
+    name: 'bounce' | 'slide' | 'cross' | 'touch',
+    response: Response
+  ): void {
     this.responses[name] = response;
   }
 
@@ -203,7 +224,7 @@ export class World {
     h: number,
     goalX?: number,
     goalY?: number,
-    filter?: (...args: any[]) => any
+    filter?: (...args: any[]) => string
   ): Collision[] {
     assertIsRect(x, y, w, h);
 
@@ -277,7 +298,7 @@ export class World {
   countCells(): number {
     let count = 0;
 
-    for (const row of this.rows.filter((row) => !!row))
+    for (const row of this.rows.filter(row => !!row))
       for (const _col of row) if (!!_col) count++;
 
     return count;
@@ -287,8 +308,8 @@ export class World {
     return !!this.rects[item];
   }
 
-  getItems(): Rect[] {
-    return Object.keys(this.rects).map((rectID) => this.rects[rectID]);
+  getItems(): IRect[] {
+    return Object.keys(this.rects).map(rectID => this.rects[rectID]);
   }
 
   countItems(): number {
@@ -316,7 +337,7 @@ export class World {
     if (!cell.items[itemID]) cell.items[itemID] = true;
   }
 
-  getRect(itemID: string): Rect {
+  getRect(itemID: string): IRect {
     let rect = this.rects[itemID];
 
     if (!rect)
@@ -513,7 +534,7 @@ export class World {
   }
 
   add(itemID: string, x: number, y: number, w: number, h: number): string {
-    let rect: Rect = this.rects[itemID];
+    const rect: IRect = this.rects[itemID];
 
     if (rect) throw new Error(`Item "${itemID}" added to the world twice.`);
 
@@ -521,7 +542,7 @@ export class World {
 
     this.rects[itemID] = { x, y, w, h };
 
-    let [cl, ct, cw, ch] = grid_toCellRect(this.cellSize, x, y, w, h);
+    const [cl, ct, cw, ch] = grid_toCellRect(this.cellSize, x, y, w, h);
 
     for (let cy = ct; cy < ct + ch; cy++)
       for (let cx = cl; cx < cl + cw; cx++) this.addItemToCell(itemID, cx, cy);
@@ -530,7 +551,7 @@ export class World {
   }
 
   remove(itemID: string): void {
-    const itemRect: Rect = JSON.parse(JSON.stringify(this.getRect(itemID)));
+    const itemRect: IRect = JSON.parse(JSON.stringify(this.getRect(itemID)));
 
     delete this.rects[itemID];
 
@@ -547,13 +568,19 @@ export class World {
         this.removeItemFromCell(itemID, cx, cy);
   }
 
-  update(itemID: string, x2: number, y2: number, w2?: any, h2?: number): void {
+  update(
+    itemID: string,
+    x2: number,
+    y2: number,
+    w2?: number,
+    h2?: number
+  ): void {
     let itemRect = this.getRect(itemID);
 
     w2 = isNaN(w2 as number) ? itemRect.w : w2;
     h2 = isNaN(h2 as number) ? itemRect.h : h2;
 
-    assertIsRect(x2, y2, w2, h2!);
+    assertIsRect(x2, y2, w2!, h2!);
 
     if (
       itemRect.x != x2 ||
@@ -561,7 +588,7 @@ export class World {
       itemRect.w != w2 ||
       itemRect.h != h2
     ) {
-      let [cl1, ct1, cw1, ch1] = grid_toCellRect(
+      const [cl1, ct1, cw1, ch1] = grid_toCellRect(
         this.cellSize,
         itemRect.x,
         itemRect.y,
@@ -569,20 +596,20 @@ export class World {
         itemRect.h
       );
 
-      let [cl2, ct2, cw2, ch2] = grid_toCellRect(
+      const [cl2, ct2, cw2, ch2] = grid_toCellRect(
         this.cellSize,
         x2,
         y2,
-        w2,
+        w2!,
         h2!
       );
 
       if (cl1 != cl2 || ct1 != ct2 || cw1 != cw2 || ch1 != ch2) {
-        let cr1: number = cl1 + cw1 - 1;
-        let cb1: number = ct1 + ch1 - 1;
+        const cr1: number = cl1 + cw1 - 1;
+        const cb1: number = ct1 + ch1 - 1;
 
-        let cr2: number = cl2 + cw2 - 1;
-        let cb2: number = ct2 + ch2 - 1;
+        const cr2: number = cl2 + cw2 - 1;
+        const cb2: number = ct2 + ch2 - 1;
 
         let cyOut: boolean;
 
@@ -603,7 +630,7 @@ export class World {
         }
       }
 
-      const rect: Rect = this.rects[itemID];
+      const rect: IRect = this.rects[itemID];
 
       rect.x = x2;
       rect.y = y2;
@@ -618,7 +645,7 @@ export class World {
     goalY: number,
     filter?: (...args: any[]) => any
   ): { x: number; y: number; collisions: Collision[] } {
-    let { x, y, collisions } = this.check(itemID, goalX, goalY, filter);
+    const { x, y, collisions } = this.check(itemID, goalX, goalY, filter);
 
     this.update(itemID, x, y);
 
@@ -644,7 +671,7 @@ export class World {
 
     let detectedCollisions: Collision[] = [];
 
-    let itemRect: Rect = this.getRect(itemID);
+    const itemRect: IRect = this.getRect(itemID);
 
     // this is returning an empty array. WHY?
     let projectedCollisions: Collision[] = this.project(
@@ -661,13 +688,13 @@ export class World {
     let collisionsCounter: number = projectedCollisions?.length || 0;
 
     while (collisionsCounter > 0) {
-      let collision: any = projectedCollisions[0];
+      const collision: Collision = projectedCollisions[0];
 
       detectedCollisions.push(collision);
 
       visited[collision.other] = true;
 
-      let response = this.getResponseByName(collision.type);
+      let response = this.getResponseByName(collision.type!);
 
       const { x, y, collisions } = response(
         this,
@@ -700,7 +727,7 @@ const bump = {
 
     assertIsPositiveNumber(cellSize, 'cellSize');
 
-    let world = new World({
+    const world: World = new World({
       cellSize: cellSize,
       rects: {},
       rows: [],
@@ -732,4 +759,4 @@ const bump = {
   },
 };
 
-export default Object.seal(bump);
+export default Object.freeze(bump);

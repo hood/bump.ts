@@ -25,7 +25,7 @@ export function grid_traverse_initStep(
   t1: number,
   t2: number
 ): [number, number, number] {
-  let v: number = t2 - t1;
+  const v: number = t2 - t1;
 
   if (v > 0) return [1, cellSize / v, ((ct + v) * cellSize - t1) / v];
   else if (v < 0)
@@ -39,37 +39,37 @@ export function grid_traverse(
   y1: number,
   x2: number,
   y2: number,
-  f: any
+  traverseFunction: (cx: number, cy: number) => void
 ): void {
-  let [cx1, cy1] = grid_toCell(cellSize, x1, y1);
-  let [cx2, cy2] = grid_toCell(cellSize, x2, y2);
+  const [cx1, cy1] = grid_toCell(cellSize, x1, y1);
+  const [cx2, cy2] = grid_toCell(cellSize, x2, y2);
   let [stepX, dx, tx] = grid_traverse_initStep(cellSize, cx1, x1, x2);
   let [stepY, dy, ty] = grid_traverse_initStep(cellSize, cy1, y1, y2);
   let [cx, cy] = [cx1, cy1];
 
-  f(cx, cy);
+  traverseFunction(cx, cy);
 
-  //The default implementation had an infinite loop problem when
-  //approaching the last cell in some occassions.We finish iterating
-  //when we are * next * to the last cell
+  // The default implementation had an infinite loop problem when
+  // approaching the last cell in some occassions. We finish iterating
+  // when we are *next* to the last cell.
   do {
     if (tx < ty) {
       [tx, cx] = [tx + dx, cx + stepX];
 
-      f(cx, cy);
+      traverseFunction(cx, cy);
     } else {
       // Addition: include both cells when going through corners
-      if (tx == ty) f(cx + stepX, cy);
+      if (tx == ty) traverseFunction(cx + stepX, cy);
 
       ty = ty + dy;
       cy = cy + stepY;
 
-      f(cx, cy);
+      traverseFunction(cx, cy);
     }
   } while (Math.abs(cx - cx2) + Math.abs(cy - cy2) > 1);
 
   //If we have not arrived to the last cell, use it
-  if (cx != cx2 || cy != cy2) f(cx2, cy2);
+  if (cx != cx2 || cy != cy2) traverseFunction(cx2, cy2);
 }
 
 export function grid_toCellRect(
@@ -81,8 +81,8 @@ export function grid_toCellRect(
 ): [number, number, number, number] {
   let [cx, cy] = grid_toCell(cellSize, x, y);
 
-  const cr = Math.ceil((x + w) / cellSize);
-  const cb = Math.ceil((y + h) / cellSize);
+  const cr: number = Math.ceil((x + w) / cellSize);
+  const cb: number = Math.ceil((y + h) / cellSize);
 
   return [cx, cy, cr - cx + 1, cb - cy + 1];
 }

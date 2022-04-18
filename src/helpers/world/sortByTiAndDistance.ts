@@ -1,4 +1,4 @@
-import { Rect } from '../..';
+import { IRect } from '../..';
 import { rect_getSquareDistance } from '../../rect';
 
 interface Item {
@@ -7,15 +7,15 @@ interface Item {
   // w: number;
   // h: number;
   ti: number;
-  itemRect: Rect;
-  otherRect: Rect;
+  itemRect: IRect;
+  otherRect: IRect;
 }
 
 export default function sortByTiAndDistance(a: Item, b: Item): number {
   if (a.ti === b.ti) {
-    const ir: Rect = a.itemRect;
-    const ar: Rect = a.otherRect;
-    const br: Rect = b.otherRect;
+    const ir: IRect = a.itemRect;
+    const ar: IRect = a.otherRect;
+    const br: IRect = b.otherRect;
 
     const ad = rect_getSquareDistance(
       ir.x,

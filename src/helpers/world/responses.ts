@@ -1,6 +1,6 @@
-import { Coords, World } from '../../index';
+import { Collision, ICoords, World } from '../../index';
 
-type ResponseType = (
+export type Response = (
   world: World,
   col: any,
   x: number,
@@ -10,11 +10,17 @@ type ResponseType = (
   goalX: number,
   goalY: number,
   filter: any
-) => [number, number, any, number];
+) => { x: number; y: number; collisions: Collision[] };
 
 export function touch(
   _world: World,
-  col: any,
+  column: {
+    touch: ICoords;
+    move: ICoords;
+    normal: ICoords;
+    slide: ICoords;
+    item: any;
+  },
   _x: number,
   _y: number,
   _w: number,
@@ -22,13 +28,19 @@ export function touch(
   _goalX: number,
   _goalY: number,
   _filter: any
-): { x: number; y: number; collisions: any[] } {
-  return { x: col.touch.x, y: col.touch.y, collisions: [] };
+): { x: number; y: number; collisions: Collision[] } {
+  return { x: column.touch.x, y: column.touch.y, collisions: [] };
 }
 
 export function cross(
   world: any,
-  col: any,
+  column: {
+    touch: ICoords;
+    move: ICoords;
+    normal: ICoords;
+    slide: ICoords;
+    item: any;
+  },
   x: number,
   y: number,
   w: number,
@@ -36,15 +48,30 @@ export function cross(
   goalX: number,
   goalY: number,
   filter: any
-): { x: number; y: number; collisions: any[] } {
-  const collisions = world.project(col.item, x, y, w, h, goalX, goalY, filter);
+): { x: number; y: number; collisions: Collision[] } {
+  const collisions = world.project(
+    column.item,
+    x,
+    y,
+    w,
+    h,
+    goalX,
+    goalY,
+    filter
+  );
 
   return { x: goalX, y: goalY, collisions };
 }
 
 export function slide(
   world: World,
-  col: any,
+  column: {
+    touch: ICoords;
+    move: ICoords;
+    normal: ICoords;
+    slide: ICoords;
+    item: any;
+  },
   x: number,
   y: number,
   w: number,
@@ -52,24 +79,24 @@ export function slide(
   goalX: number,
   goalY: number,
   filter?: any
-): { x: number; y: number; collisions: any[] } {
+): { x: number; y: number; collisions: Collision[] } {
   let _goalX: number = isNaN(goalX) ? x : goalX;
   let _goalY: number = isNaN(goalY) ? y : goalY;
 
-  const tch: Coords = col.touch;
-  const move: Coords = col.move;
+  const tch: ICoords = column.touch;
+  const move: ICoords = column.move;
 
   if (move.x !== 0 || move.y !== 0)
-    if (col.normal.x !== 0) _goalX = tch.x;
+    if (column.normal.x !== 0) _goalX = tch.x;
     else _goalY = tch.y;
 
-  col.slide = { x: _goalX, y: _goalY };
+  column.slide = { x: _goalX, y: _goalY };
 
   const _x: number = tch.x;
   const _y: number = tch.y;
 
   const collisions = world.project(
-    col.item,
+    column.item,
     _x,
     _y,
     w,
@@ -92,7 +119,7 @@ export function bounce(
   goalX?: number,
   goalY?: number,
   filter?: any
-): { x: number; y: number; collisions: any[] } {
+): { x: number; y: number; collisions: Collision[] } {
   const _goalX: number = isNaN(goalX as number) ? x : goalX!;
   const _goalY: number = isNaN(goalY as number) ? y : goalY!;
 
