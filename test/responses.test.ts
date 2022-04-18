@@ -1,7 +1,6 @@
 import Bump from '../src/index';
 import { rect_detectCollision } from '../src/rect';
 
-// @ts-ignore
 const world = Bump.newWorld(64);
 
 function touch(
@@ -62,6 +61,7 @@ function slide(
     goalY
   );
 
+  // @ts-ignore
   Bump.responses.slide(world, collision, x, y, w, h, goalX!, goalY!);
 
   return [
