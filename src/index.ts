@@ -551,7 +551,13 @@ export class World {
   }
 
   remove(itemID: string): void {
-    const itemRect: IRect = JSON.parse(JSON.stringify(this.getRect(itemID)));
+    const _itemRect = this.getRect(itemID);
+    const itemRect: IRect = {
+      x: _itemRect.x,
+      y: _itemRect.y,
+      w: _itemRect.w,
+      h: _itemRect.h,
+    };
 
     delete this.rects[itemID];
 
