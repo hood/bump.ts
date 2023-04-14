@@ -28,7 +28,7 @@ export function touch(
   _goalX: number,
   _goalY: number,
   _filter: any
-): { x: number; y: number; collisions: Collision[] } {
+): ReturnType<Response> {
   return { x: column.touch.x, y: column.touch.y, collisions: [] };
 }
 
@@ -48,7 +48,7 @@ export function cross(
   goalX: number,
   goalY: number,
   filter: any
-): { x: number; y: number; collisions: Collision[] } {
+): ReturnType<Response> {
   const collisions = world.project(
     column.item,
     x,
@@ -79,7 +79,7 @@ export function slide(
   goalX: number,
   goalY: number,
   filter?: any
-): { x: number; y: number; collisions: Collision[] } {
+): ReturnType<Response> {
   let _goalX: number = isNaN(goalX) ? x : goalX;
   let _goalY: number = isNaN(goalY) ? y : goalY;
 
@@ -119,7 +119,7 @@ export function bounce(
   goalX?: number,
   goalY?: number,
   filter?: any
-): { x: number; y: number; collisions: Collision[] } {
+): ReturnType<Response> {
   const _goalX: number = isNaN(goalX as number) ? x : goalX!;
   const _goalY: number = isNaN(goalY as number) ? y : goalY!;
 

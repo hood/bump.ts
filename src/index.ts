@@ -24,9 +24,13 @@ import {
 } from './helpers/world/responses';
 import sortByTiAndDistance from './helpers/world/sortByTiAndDistance';
 
-function defaultFilter(): string {
+function defaultFilter(): 'slide' {
   return 'slide';
 }
+
+type ResponseType = 'bounce' | 'slide' | 'cross' | 'touch';
+
+type Filter = (item: string, other: string) => ResponseType;
 
 interface IItemInfo {
   item: string;
@@ -50,7 +54,7 @@ export interface ICoords {
 export interface Collision {
   other: any | null | undefined;
   item: string | null | undefined;
-  type?: 'touch' | 'cross' | 'slide' | 'bounce' | string;
+  type?: ResponseType;
   overlaps: boolean;
   ti: number;
   move: ICoords;
@@ -66,7 +70,7 @@ export type Cell = {
   ID: string;
   x: number;
   y: number;
-  items: { [itemID: string]: boolean };
+  items: Record<string, boolean>;
 };
 
 function sortByWeight(a: IItemInfo, b: IItemInfo): number {
@@ -81,7 +85,7 @@ function getCellsTouchedBySegment(
   y2: number
 ): Cell[] {
   const cells: Cell[] = [];
-  const visited: { [itemID: string]: boolean } = {};
+  const visited: Record<string, boolean> = {};
 
   grid_traverse(self.cellSize, x1, y1, x2, y2, function(
     cx: number,
@@ -114,7 +118,7 @@ function getInfoAboutItemsTouchedBySegment(
   let cells = getCellsTouchedBySegment(self, x1, y1, x2, y2);
   let rect, l, t, w, h, ti1, ti2;
 
-  let visited: { [itemID: string]: boolean } = {};
+  let visited: Record<string, boolean> = {};
   let itemInfo: IItemInfo[] = [];
 
   for (const cell of cells) {
@@ -180,18 +184,21 @@ function getInfoAboutItemsTouchedBySegment(
 }
 
 export class World {
-  responses: { [responseID: string]: Response } = {};
+  responses: Record<ResponseType, Response> = {} as Record<
+    ResponseType,
+    Response
+  >;
   cellSize: number = 0;
   rows: Cell[][];
-  rects: { [itemID: string]: IRect };
-  nonEmptyCells: { [cellID: string]: boolean };
+  rects: Record<string, IRect> = {};
+  nonEmptyCells: Record<string, boolean>;
 
   constructor(input: {
     cellSize: number;
     rects: {};
     rows: [];
     nonEmptyCells: {};
-    responses: {};
+    responses: Record<ResponseType, Response>;
   }) {
     this.cellSize = input.cellSize;
     this.rects = input.rects;
@@ -200,14 +207,11 @@ export class World {
     this.responses = input.responses;
   }
 
-  addResponse(
-    name: 'bounce' | 'slide' | 'cross' | 'touch',
-    response: Response
-  ): void {
+  addResponse(name: ResponseType, response: Response): void {
     this.responses[name] = response;
   }
 
-  getResponseByName(name: string): any {
+  getResponseByName(name: ResponseType): Response {
     const response = this.responses[name];
 
     if (!response)
@@ -224,23 +228,24 @@ export class World {
     h: number,
     goalX?: number,
     goalY?: number,
-    filter?: (...args: any[]) => string
+    filter?: (item: string, other: string) => ResponseType | false
   ): Collision[] {
     assertIsRect(x, y, w, h);
 
-    const _goalX = isNaN(goalX as number) ? x : goalX!;
-    const _goalY = isNaN(goalY as number) ? y : goalY!;
+    const _goalX = isNaN(goalX!) ? x : goalX!;
+    const _goalY = isNaN(goalY!) ? y : goalY!;
 
     const _filter = filter || defaultFilter;
 
     let collisions: Collision[] = [];
 
-    let visited: { [itemID: string]: boolean } = {};
+    let visited: Record<string, boolean> = {};
 
     if (itemID) visited[itemID] = true;
 
-    // This could probably be done with less cells using a polygon raster over the cells instead of a
-    // bounding rect of the whole movement.Conditional to building a queryPolygon method
+    // This could probably be done with less cells using a polygon raster over
+    // the cells instead of a bounding rect of the whole movement. Conditional
+    // to building a queryPolygon method.
     let tl: number = Math.min(_goalX, x);
     let tt: number = Math.min(_goalY, y);
 
@@ -252,20 +257,20 @@ export class World {
 
     let [cl, ct, cw, ch] = grid_toCellRect(this.cellSize, tl, tt, tw, th);
 
-    let dictItemsInCellRect: {
-      [itemID: string]: boolean;
-    } = this.getDictItemsInCellRect(cl, ct, cw, ch);
+    let dictItemsInCellRect: Record<
+      string,
+      boolean
+    > = this.getDictItemsInCellRect(cl, ct, cw, ch);
 
     for (const other of Object.keys(dictItemsInCellRect)) {
       if (!visited[other]) {
         visited[other] = true;
 
-        const responseName: string = _filter(itemID, other);
+        if (!this.hasItem(other)) continue;
 
-        if (
-          responseName &&
-          /* why do I have to do this extra check? */ this.hasItem(other)
-        ) {
+        const responseName: ResponseType | false = _filter(itemID!, other);
+
+        if (responseName !== false) {
           let otherRect = this.getRect(other);
 
           let collision: Partial<Collision> | undefined = rect_detectCollision(
@@ -358,8 +363,8 @@ export class World {
     ct: number,
     cw: number,
     ch: number
-  ): { [itemID: string]: boolean } {
-    const items_dict: { [itemID: string]: boolean } = {};
+  ): Record<string, boolean> {
+    const items_dict: Record<string, boolean> = {};
 
     for (let cy = ct; cy <= ct + ch - 1; cy++) {
       let row = this.rows[cy];
@@ -583,8 +588,8 @@ export class World {
   ): void {
     let itemRect = this.getRect(itemID);
 
-    w2 = isNaN(w2 as number) ? itemRect.w : w2;
-    h2 = isNaN(h2 as number) ? itemRect.h : h2;
+    w2 = isNaN(w2!) ? itemRect.w : w2;
+    h2 = isNaN(h2!) ? itemRect.h : h2;
 
     assertIsRect(x2, y2, w2!, h2!);
 
@@ -649,8 +654,8 @@ export class World {
     itemID: string,
     goalX: number,
     goalY: number,
-    filter?: (...args: any[]) => any
-  ): { x: number; y: number; collisions: Collision[] } {
+    filter?: Filter
+  ): ReturnType<Response> {
     const { x, y, collisions } = this.check(itemID, goalX, goalY, filter);
 
     this.update(itemID, x, y);
@@ -662,24 +667,23 @@ export class World {
     itemID: string,
     goalX: number,
     goalY: number,
-    filter?: (...args: any[]) => any
-  ): { x: number; y: number; collisions: Collision[] } {
+    filter?: Filter
+  ): ReturnType<Response> {
     let _goalX: number = goalX;
     let _goalY: number = goalY;
 
-    const checkFilter: any = filter || defaultFilter;
+    const checkFilter: Filter = filter || defaultFilter;
 
-    let visited: { [itemID: string]: boolean } = {};
+    let visited: Record<string, boolean> = {};
     visited[itemID] = true;
 
-    const visitedFilter = (itm: any, other: any) =>
-      !!visited[other] ? false : checkFilter(itm, other);
+    const visitedFilter = (item: string, other: string) =>
+      !!visited[other] ? false : checkFilter(item, other);
 
     let detectedCollisions: Collision[] = [];
 
     const itemRect: IRect = this.getRect(itemID);
 
-    // this is returning an empty array. WHY?
     let projectedCollisions: Collision[] = this.project(
       itemID,
       itemRect.x,
@@ -738,7 +742,7 @@ const bump = {
       rects: {},
       rows: [],
       nonEmptyCells: {},
-      responses: {},
+      responses: {} as Record<string, Response>,
     });
 
     world.addResponse('touch', touch);
