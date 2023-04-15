@@ -584,7 +584,7 @@ export class World {
 
     for (let cy = ct; cy < ct + ch; cy++)
       for (let cx = cl; cx < cl + cw; cx++)
-        this.removeItemFromCell(itemID, cx, cy);
+        if (this.removeItemFromCell(itemID, cx, cy)) return;
   }
 
   update(
