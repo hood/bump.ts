@@ -99,22 +99,13 @@ export function rect_getSegmentIntersectionIndices(
   return [_ti1, _ti2, nx1, ny1, nx2, ny2];
 }
 
-// //Calculates the Minkowsky difference between 2 rects, which is another rect
-export function rect_getDiff(
-  x1: number,
-  y1: number,
-  w1: number,
-  h1: number,
-  x2: number,
-  y2: number,
-  w2: number,
-  h2: number
-): IRect {
+// Calculates the Minkowsky difference between 2 rects, which is another rect
+export function rect_getDiff(rect: IRect, otherRect: IRect): IRect {
   return {
-    x: x2 - x1 - w1,
-    y: y2 - y1 - h1,
-    w: w1 + w2,
-    h: h1 + h2,
+    x: otherRect.x - rect.x - rect.w,
+    y: otherRect.y - rect.y - rect.h,
+    w: rect.w + otherRect.w,
+    h: rect.h + otherRect.h,
   };
 }
 
@@ -170,16 +161,7 @@ export function rect_detectCollision(
   let dx: number = (goalX ?? rect.x) - rect.x;
   let dy: number = (goalY ?? rect.y) - rect.y;
 
-  const { x, y, w, h } = rect_getDiff(
-    rect.x,
-    rect.y,
-    rect.w,
-    rect.h,
-    otherRect.x,
-    otherRect.y,
-    otherRect.w,
-    otherRect.h
-  );
+  const { x, y, w, h } = rect_getDiff(rect, otherRect);
 
   let overlaps: boolean;
   let nx, ny;

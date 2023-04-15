@@ -281,14 +281,8 @@ export class World {
           let otherRect = this.getRect(other);
 
           let collision: Partial<Collision> | undefined = rect_detectCollision(
-            rect.x,
-            rect.y,
-            rect.w,
-            rect.h,
-            otherRect.x,
-            otherRect.y,
-            otherRect.w,
-            otherRect.h,
+            rect,
+            otherRect,
             _goalX,
             _goalY
           );

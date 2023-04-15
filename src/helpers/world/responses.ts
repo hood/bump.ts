@@ -97,10 +97,7 @@ export function slide(
 
   const collisions = world.project(
     column.item,
-    _x,
-    _y,
-    w,
-    h,
+    { x: _x, y: _y, w, h },
     _goalX,
     _goalY,
     filter
@@ -143,10 +140,7 @@ export function bounce(
 
   const collisions = world.project(
     collision.item,
-    touch.x,
-    touch.y,
-    w,
-    h,
+    { x: touch.x, y: touch.y, w, h },
     bx,
     by,
     filter
