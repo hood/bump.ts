@@ -119,15 +119,15 @@ export function rect_getDiff(
 }
 
 export function rect_containsPoint(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
+  rect: IRect,
   px: number,
   py: number
 ): boolean {
   return (
-    px - x > DELTA && py - y > DELTA && x + w - px > DELTA && y + h - py > DELTA
+    px - rect.x > DELTA &&
+    py - rect.y > DELTA &&
+    rect.x + rect.w - px > DELTA &&
+    rect.y + rect.h - py > DELTA
   );
 }
 
@@ -136,12 +136,14 @@ export function rect_isIntersecting(
   y1: number,
   w1: number,
   h1: number,
-  x2: number,
-  y2: number,
-  w2: number,
-  h2: number
+  otherRect: IRect
 ): boolean {
-  return x1 < x2 + w2 && x2 < x1 + w1 && y1 < y2 + h2 && y2 < y1 + h1;
+  return (
+    x1 < otherRect.x + otherRect.w &&
+    otherRect.x < x1 + w1 &&
+    y1 < otherRect.y + otherRect.h &&
+    otherRect.y < y1 + h1
+  );
 }
 
 export function rect_getSquareDistance(
@@ -181,7 +183,7 @@ export function rect_detectCollision(
   let ti: number | undefined;
 
   // If the item was intersecting other
-  if (rect_containsPoint(x, y, w, h, 0, 0)) {
+  if (rect_containsPoint({ x, y, w, h }, 0, 0)) {
     let { x: px, y: py } = rect_getNearestCorner(x, y, w, h, 0, 0);
 
     let wi: number = Math.min(w1, Math.abs(px)); // area of intersection

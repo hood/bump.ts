@@ -130,7 +130,7 @@ function getInfoAboutItemsTouchedBySegment(
           visited[itemID] = true;
 
           if (!filter || filter(itemID)) {
-            rect = self['rects'][itemID];
+            rect = self['getRect'](itemID);
             l = rect.x;
             t = rect.y;
             w = rect.w;
@@ -198,7 +198,7 @@ export class World {
   >;
   cellSize: number = 0;
   rows: Cell[][];
-  rects: Record<string, IRect> = {};
+  rects: Map<string, IRect> = new Map<string, IRect>();
   nonEmptyCells: Record<string, boolean>;
 
   constructor(input: {
@@ -209,7 +209,9 @@ export class World {
     responses: Record<ResponseType, Response>;
   }) {
     this.cellSize = input.cellSize;
-    this.rects = input.rects;
+
+    this.rects = new Map(Object.entries(input.rects));
+
     this.rows = input.rows;
     this.nonEmptyCells = input.nonEmptyCells;
     this.responses = input.responses;
@@ -263,12 +265,17 @@ export class World {
     let tw: number = tr - tl;
     let th: number = tb - tt;
 
-    let [cl, ct, cw, ch] = grid_toCellRect(this.cellSize, tl, tt, tw, th);
+    let cellRect = grid_toCellRect(this.cellSize, tl, tt, tw, th);
 
     let dictItemsInCellRect: Record<
       string,
       boolean
-    > = this.getDictItemsInCellRect(cl, ct, cw, ch);
+    > = this.getDictItemsInCellRect(
+      cellRect.x,
+      cellRect.y,
+      cellRect.w,
+      cellRect.h
+    );
 
     for (const other of Object.keys(dictItemsInCellRect)) {
       if (!visited[other]) {
@@ -318,15 +325,15 @@ export class World {
   }
 
   hasItem(item: string): boolean {
-    return !!this.rects[item];
+    return this.rects.has(item);
   }
 
   getItems(): IRect[] {
-    return Object.keys(this.rects).map(rectID => this.rects[rectID]);
+    return Array.from(this.rects.values());
   }
 
   countItems(): number {
-    return Object.keys(this.rects).length;
+    return this.rects.size;
   }
 
   private addItemToCell(itemID: string, cx: number, cy: number): void {
@@ -351,19 +358,14 @@ export class World {
   }
 
   getRect(itemID: string): IRect {
-    let rect = this.rects[itemID];
+    const rect = this.rects.get(itemID);
 
     if (!rect)
       throw new Error(
         `Item "${itemID}" must be added to the world before getting its rect. Use world:add(item, x,y,w,h) to add it first.`
       );
 
-    return {
-      x: rect.x,
-      y: rect.y,
-      w: rect.w,
-      h: rect.h,
-    };
+    return rect;
   }
 
   getDictItemsInCellRect(
@@ -423,24 +425,20 @@ export class World {
   ): string[] {
     assertIsRect(x, y, w, h);
 
-    const [cl, ct, cw, ch] = grid_toCellRect(this.cellSize, x, y, w, h);
-    const dictItemsInCellRect = this.getDictItemsInCellRect(cl, ct, cw, ch);
+    const cellRect = grid_toCellRect(this.cellSize, x, y, w, h);
+    const dictItemsInCellRect = this.getDictItemsInCellRect(
+      cellRect.x,
+      cellRect.y,
+      cellRect.w,
+      cellRect.h
+    );
 
     const items: string[] = [];
 
     for (const itemID of Object.keys(dictItemsInCellRect))
       if (
         (!filter || filter(itemID)) &&
-        rect_isIntersecting(
-          x,
-          y,
-          w,
-          h,
-          this.rects[itemID].x,
-          this.rects[itemID].y,
-          this.rects[itemID].w,
-          this.rects[itemID].h
-        )
+        rect_isIntersecting(x, y, w, h, this.getRect(itemID))
       )
         items.push(itemID);
 
@@ -460,14 +458,7 @@ export class World {
     for (const itemID of Object.keys(dictItemsInCellRect))
       if (
         (!filter || filter(itemID)) &&
-        rect_containsPoint(
-          this.rects[itemID].x,
-          this.rects[itemID].y,
-          this.rects[itemID].w,
-          this.rects[itemID].h,
-          x,
-          y
-        )
+        rect_containsPoint(this.getRect(itemID), x, y)
       )
         items.push(itemID);
 
@@ -547,18 +538,25 @@ export class World {
   }
 
   add(itemID: string, x: number, y: number, w: number, h: number): string {
-    const rect: IRect = this.rects[itemID];
+    const rect: IRect | undefined = this.rects.get(itemID);
 
     if (rect) throw new Error(`Item "${itemID}" added to the world twice.`);
 
     assertIsRect(x, y, w, h);
 
-    this.rects[itemID] = { x, y, w, h };
+    this.rects.set(itemID, { x, y, w, h });
 
-    const [cl, ct, cw, ch] = grid_toCellRect(this.cellSize, x, y, w, h);
+    const /* [cl, ct, cw, ch] */ cellRect = grid_toCellRect(
+        this.cellSize,
+        x,
+        y,
+        w,
+        h
+      );
 
-    for (let cy = ct; cy < ct + ch; cy++)
-      for (let cx = cl; cx < cl + cw; cx++) this.addItemToCell(itemID, cx, cy);
+    for (let cy = cellRect.y; cy < cellRect.y + cellRect.h; cy++)
+      for (let cx = cellRect.x; cx < cellRect.x + cellRect.w; cx++)
+        this.addItemToCell(itemID, cx, cy);
 
     return itemID;
   }
@@ -572,9 +570,9 @@ export class World {
       h: _itemRect.h,
     };
 
-    delete this.rects[itemID];
+    this.rects.delete(itemID);
 
-    let [cl, ct, cw, ch] = grid_toCellRect(
+    let cellRect = grid_toCellRect(
       this.cellSize,
       itemRect.x,
       itemRect.y,
@@ -582,8 +580,8 @@ export class World {
       itemRect.h
     );
 
-    for (let cy = ct; cy < ct + ch; cy++)
-      for (let cx = cl; cx < cl + cw; cx++)
+    for (let cy = cellRect.y; cy < cellRect.y + cellRect.h; cy++)
+      for (let cx = cellRect.x; cx < cellRect.x + cellRect.w; cx++)
         if (this.removeItemFromCell(itemID, cx, cy)) return;
   }
 
@@ -607,7 +605,7 @@ export class World {
       itemRect.w != w2 ||
       itemRect.h != h2
     ) {
-      const [cl1, ct1, cw1, ch1] = grid_toCellRect(
+      const cellRect1 = grid_toCellRect(
         this.cellSize,
         itemRect.x,
         itemRect.y,
@@ -615,46 +613,45 @@ export class World {
         itemRect.h
       );
 
-      const [cl2, ct2, cw2, ch2] = grid_toCellRect(
-        this.cellSize,
-        x2,
-        y2,
-        w2!,
-        h2!
-      );
+      const cellRect2 = grid_toCellRect(this.cellSize, x2, y2, w2!, h2!);
 
-      if (cl1 != cl2 || ct1 != ct2 || cw1 != cw2 || ch1 != ch2) {
-        const cr1: number = cl1 + cw1 - 1;
-        const cb1: number = ct1 + ch1 - 1;
+      if (
+        cellRect1.x != cellRect2.x ||
+        cellRect1.y != cellRect2.y ||
+        cellRect1.w != cellRect2.w ||
+        cellRect1.h != cellRect2.h
+      ) {
+        const cr1: number = cellRect1.x + cellRect1.w - 1;
+        const cb1: number = cellRect1.y + cellRect1.h - 1;
 
-        const cr2: number = cl2 + cw2 - 1;
-        const cb2: number = ct2 + ch2 - 1;
+        const cr2: number = cellRect2.x + cellRect2.w - 1;
+        const cb2: number = cellRect2.y + cellRect2.h - 1;
 
         let cyOut: boolean;
 
-        for (let cy = ct1; cy <= cb1; cy++) {
-          cyOut = Number(cy) < ct2 || cy > cb2;
+        for (let cy = cellRect1.y; cy <= cb1; cy++) {
+          cyOut = Number(cy) < cellRect2.y || cy > cb2;
 
-          for (let cx = cl1; cx <= cr1; cx++)
-            if (cyOut || cx < cl2 || cx > cr2)
+          for (let cx = cellRect1.x; cx <= cr1; cx++)
+            if (cyOut || cx < cellRect2.x || cx > cr2)
               this.removeItemFromCell(itemID, cx, cy);
         }
 
-        for (let cy = ct2; cy <= cb2; cy++) {
-          cyOut = cy < ct1 || cy > cb1;
+        for (let cy = cellRect2.y; cy <= cb2; cy++) {
+          cyOut = cy < cellRect1.y || cy > cb1;
 
-          for (let cx = cl2; cx <= cr2; cx++)
-            if (cyOut || cx < cl1 || cx > cr1)
+          for (let cx = cellRect2.x; cx <= cr2; cx++)
+            if (cyOut || cx < cellRect1.x || cx > cr1)
               this.addItemToCell(itemID, cx, cy);
         }
       }
 
-      const rect: IRect = this.rects[itemID];
-
-      rect.x = x2;
-      rect.y = y2;
-      rect.w = w2!;
-      rect.h = h2!;
+      this.rects.set(itemID, {
+        x: x2,
+        y: y2,
+        w: w2!,
+        h: h2!,
+      });
     }
   }
 
@@ -677,9 +674,6 @@ export class World {
     goalY: number,
     filter?: Filter
   ): ReturnType<Response> {
-    let _goalX: number = goalX;
-    let _goalY: number = goalY;
-
     const checkFilter: Filter = filter || defaultFilter;
 
     let visited: Record<string, boolean> = {};
@@ -698,8 +692,8 @@ export class World {
       itemRect.y,
       itemRect.w,
       itemRect.h,
-      _goalX,
-      _goalY,
+      goalX,
+      goalY,
       visitedFilter
     );
 
@@ -721,19 +715,19 @@ export class World {
         itemRect.y,
         itemRect.w,
         itemRect.h,
-        _goalX,
-        _goalY,
+        goalX,
+        goalY,
         visitedFilter
       );
 
-      _goalX = x;
-      _goalY = y;
+      goalX = x;
+      goalY = y;
       projectedCollisions = collisions;
 
       collisionsCounter = collisions?.length || 0;
     }
 
-    return { x: _goalX, y: _goalY, collisions: detectedCollisions };
+    return { x: goalX, y: goalY, collisions: detectedCollisions };
   }
 }
 

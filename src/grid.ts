@@ -1,3 +1,5 @@
+import { IRect } from '.';
+
 export function grid_toWorld(
   cellSize: number,
   cx: number,
@@ -78,11 +80,11 @@ export function grid_toCellRect(
   y: number,
   w: number,
   h: number
-): [number, number, number, number] {
+): IRect {
   let [cx, cy] = grid_toCell(cellSize, x, y);
 
   const cr: number = Math.ceil((x + w) / cellSize);
   const cb: number = Math.ceil((y + h) / cellSize);
 
-  return [cx, cy, cr - cx + 1, cb - cy + 1];
+  return { x: cx, y: cy, w: cr - cx + 1, h: cb - cy + 1 };
 }
