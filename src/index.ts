@@ -262,7 +262,12 @@ export class World {
     let tw: number = tr - tl;
     let th: number = tb - tt;
 
-    let cellRect = grid_toCellRect(this.cellSize, tl, tt, tw, th);
+    let cellRect = grid_toCellRect(this.cellSize, {
+      x: tl,
+      y: tt,
+      w: tw,
+      h: th,
+    });
 
     let dictItemsInCellRect: Record<
       string,
@@ -428,7 +433,7 @@ export class World {
   ): string[] {
     assertIsRect(x, y, w, h);
 
-    const cellRect = grid_toCellRect(this.cellSize, x, y, w, h);
+    const cellRect = grid_toCellRect(this.cellSize, { x, y, w, h });
     const dictItemsInCellRect = this.getDictItemsInCellRect(cellRect);
 
     const items: string[] = [];
@@ -542,15 +547,11 @@ export class World {
 
     assertIsRect(x, y, w, h);
 
-    this.rects.set(itemID, { x, y, w, h });
+    const rectToAdd = { x, y, w, h };
 
-    const /* [cl, ct, cw, ch] */ cellRect = grid_toCellRect(
-        this.cellSize,
-        x,
-        y,
-        w,
-        h
-      );
+    this.rects.set(itemID, rectToAdd);
+
+    const cellRect = grid_toCellRect(this.cellSize, rectToAdd);
 
     for (let cy = cellRect.y; cy < cellRect.y + cellRect.h; cy++)
       for (let cx = cellRect.x; cx < cellRect.x + cellRect.w; cx++)
@@ -570,13 +571,7 @@ export class World {
 
     this.rects.delete(itemID);
 
-    let cellRect = grid_toCellRect(
-      this.cellSize,
-      itemRect.x,
-      itemRect.y,
-      itemRect.w,
-      itemRect.h
-    );
+    let cellRect = grid_toCellRect(this.cellSize, itemRect);
 
     for (let cy = cellRect.y; cy < cellRect.y + cellRect.h; cy++)
       for (let cx = cellRect.x; cx < cellRect.x + cellRect.w; cx++)
@@ -603,15 +598,14 @@ export class World {
       itemRect.w != w2 ||
       itemRect.h != h2
     ) {
-      const cellRect1 = grid_toCellRect(
-        this.cellSize,
-        itemRect.x,
-        itemRect.y,
-        itemRect.w,
-        itemRect.h
-      );
+      const cellRect1 = grid_toCellRect(this.cellSize, itemRect);
 
-      const cellRect2 = grid_toCellRect(this.cellSize, x2, y2, w2!, h2!);
+      const cellRect2 = grid_toCellRect(this.cellSize, {
+        x: x2,
+        y: y2,
+        w: w2!,
+        h: h2!,
+      });
 
       if (
         cellRect1.x != cellRect2.x ||

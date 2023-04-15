@@ -74,17 +74,11 @@ export function grid_traverse(
   if (cx != cx2 || cy != cy2) traverseFunction(cx2, cy2);
 }
 
-export function grid_toCellRect(
-  cellSize: number,
-  x: number,
-  y: number,
-  w: number,
-  h: number
-): IRect {
-  let [cx, cy] = grid_toCell(cellSize, x, y);
+export function grid_toCellRect(cellSize: number, rect: IRect): IRect {
+  let [cx, cy] = grid_toCell(cellSize, rect.x, rect.y);
 
-  const cr: number = Math.ceil((x + w) / cellSize);
-  const cb: number = Math.ceil((y + h) / cellSize);
+  const cr: number = Math.ceil((rect.x + rect.w) / cellSize);
+  const cb: number = Math.ceil((rect.y + rect.h) / cellSize);
 
   return { x: cx, y: cy, w: cr - cx + 1, h: cb - cy + 1 };
 }
