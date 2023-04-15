@@ -162,21 +162,24 @@ export function rect_getSquareDistance(
 }
 
 export function rect_detectCollision(
-  x1: number,
-  y1: number,
-  w1: number,
-  h1: number,
-  x2: number,
-  y2: number,
-  w2: number,
-  h2: number,
+  rect: IRect,
+  otherRect: IRect,
   goalX?: number,
   goalY?: number
 ): undefined | Partial<Collision> {
-  let dx: number = (goalX ?? x1) - x1;
-  let dy: number = (goalY ?? y1) - y1;
+  let dx: number = (goalX ?? rect.x) - rect.x;
+  let dy: number = (goalY ?? rect.y) - rect.y;
 
-  const { x, y, w, h } = rect_getDiff(x1, y1, w1, h1, x2, y2, w2, h2);
+  const { x, y, w, h } = rect_getDiff(
+    rect.x,
+    rect.y,
+    rect.w,
+    rect.h,
+    otherRect.x,
+    otherRect.y,
+    otherRect.w,
+    otherRect.h
+  );
 
   let overlaps: boolean;
   let nx, ny;
@@ -186,8 +189,8 @@ export function rect_detectCollision(
   if (rect_containsPoint({ x, y, w, h }, 0, 0)) {
     let { x: px, y: py } = rect_getNearestCorner(x, y, w, h, 0, 0);
 
-    let wi: number = Math.min(w1, Math.abs(px)); // area of intersection
-    let hi: number = Math.min(h1, Math.abs(py)); // area of intersection
+    let wi: number = Math.min(rect.w, Math.abs(px)); // area of intersection
+    let hi: number = Math.min(rect.h, Math.abs(py)); // area of intersection
 
     ti = -wi * hi; // `ti` is the negative area of intersection
 
@@ -240,8 +243,8 @@ export function rect_detectCollision(
       nx = Math.sign(px);
       ny = Math.sign(py);
 
-      tx = x1 + px;
-      ty = y1 + py;
+      tx = rect.x + px;
+      ty = rect.y + py;
     } else {
       // Intersecting and moving - move in the opposite direction.
       const insersections = rect_getSegmentIntersectionIndices(
@@ -266,13 +269,13 @@ export function rect_detectCollision(
 
       if (!ti1) return;
 
-      tx = x1 + dx * ti1;
-      ty = y1 + dy * ti1;
+      tx = rect.x + dx * ti1;
+      ty = rect.y + dy * ti1;
     }
   //tunnel
   else {
-    tx = x1 + dx * ti;
-    ty = y1 + dy * ti;
+    tx = rect.x + dx * ti;
+    ty = rect.y + dy * ti;
   }
 
   return {
@@ -282,7 +285,7 @@ export function rect_detectCollision(
     move: { x: dx, y: dy },
     normal: { x: nx as number, y: ny as number },
     touch: { x: tx, y: ty },
-    itemRect: { x: x1, y: y1, w: w1, h: h1 },
-    otherRect: { x: x2, y: y2, w: w2, h: h2 },
+    itemRect: rect,
+    otherRect,
   };
 }
