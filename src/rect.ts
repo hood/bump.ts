@@ -1,5 +1,6 @@
 import { Collision, ICoords, IRect } from '.';
 import { DELTA } from './constants';
+import { memoizeWithCustomSerializer } from './helpers/generic/memoize';
 import nearest from './helpers/generic/nearest';
 
 export function rect_getNearestCorner(
@@ -106,47 +107,55 @@ export function rect_getDiff(rect: IRect, otherRect: IRect): IRect {
   };
 }
 
-export function rect_containsPoint(
-  rect: IRect,
-  px: number,
-  py: number
-): boolean {
-  return (
-    px - rect.x > DELTA &&
-    py - rect.y > DELTA &&
-    rect.x + rect.w - px > DELTA &&
-    rect.y + rect.h - py > DELTA
-  );
-}
+export const rect_containsPoint = memoizeWithCustomSerializer(
+  (rect: IRect, px: number, py: number): boolean => {
+    return (
+      px - rect.x > DELTA &&
+      py - rect.y > DELTA &&
+      rect.x + rect.w - px > DELTA &&
+      rect.y + rect.h - py > DELTA
+    );
+  },
+  (rect: IRect, px: number, py: number): string =>
+    `${rect.x}|${rect.y}|${rect.w}|${rect.h}|${px}|${py}`
+);
 
-export function rect_isIntersecting(
-  x1: number,
-  y1: number,
-  w1: number,
-  h1: number,
-  otherRect: IRect
-): boolean {
-  return (
-    x1 < otherRect.x + otherRect.w &&
-    otherRect.x < x1 + w1 &&
-    y1 < otherRect.y + otherRect.h &&
-    otherRect.y < y1 + h1
-  );
-}
+export const rect_isIntersecting = memoizeWithCustomSerializer(
+  (
+    x1: number,
+    y1: number,
+    w1: number,
+    h1: number,
+    otherRect: IRect
+  ): boolean => {
+    return (
+      x1 < otherRect.x + otherRect.w &&
+      otherRect.x < x1 + w1 &&
+      y1 < otherRect.y + otherRect.h &&
+      otherRect.y < y1 + h1
+    );
+  },
+  (x1: number, y1: number, w1: number, h1: number, otherRect: IRect): string =>
+    `${x1}|${y1}|${w1}|${h1}|${otherRect.x}|${otherRect.y}|${otherRect.w}|${otherRect.h}`
+);
 
-export function rect_getSquareDistance(rect: IRect, otherRect: IRect): number {
-  const dx = rect.x - otherRect.x + (rect.w - otherRect.w) / 2;
-  const dy = rect.y - otherRect.y + (rect.h - otherRect.h) / 2;
+export const rect_getSquareDistance = memoizeWithCustomSerializer(
+  (rect: IRect, otherRect: IRect): number => {
+    const dx = rect.x - otherRect.x + (rect.w - otherRect.w) / 2;
+    const dy = rect.y - otherRect.y + (rect.h - otherRect.h) / 2;
 
-  return dx * dx + dy * dy;
-}
+    return dx * dx + dy * dy;
+  },
+  (rect: IRect, otherRect: IRect): string =>
+    `${rect.x}|${rect.y}|${rect.w}|${rect.h}|${otherRect.x}|${otherRect.y}|${otherRect.w}|${otherRect.h}`
+);
 
-export function rect_detectCollision(
+export const rect_detectCollision = (
   rect: IRect,
   otherRect: IRect,
   goalX?: number,
   goalY?: number
-): undefined | Partial<Collision> {
+): undefined | Partial<Collision> => {
   let dx: number = (goalX ?? rect.x) - rect.x;
   let dy: number = (goalY ?? rect.y) - rect.y;
 
@@ -253,4 +262,4 @@ export function rect_detectCollision(
     itemRect: rect,
     otherRect,
   };
-}
+};
