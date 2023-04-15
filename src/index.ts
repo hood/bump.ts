@@ -334,10 +334,10 @@ export class World {
 
     const row = this.rows[cy];
 
-    // Initialize a cell if no cell is present at this point
+    // Initialize a cell if no cell is present at this point.
     if (!row[cx])
       row[cx] = {
-        ID: `Cell_${Math.ceil(Math.random() * Date.now()).toString(36)}`,
+        ID: `Cell_${cx}:${cy}`,
         x: cx,
         y: cy,
         items: {},
