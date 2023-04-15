@@ -259,12 +259,11 @@ export class World {
       h: th,
     });
 
-    let dictItemsInCellRect: Record<
-      string,
-      boolean
-    > = this.getDictItemsInCellRect(cellRect);
+    let itemsInCellRect = this.getItemsInCellRect(cellRect);
 
-    for (const other of Object.keys(dictItemsInCellRect)) {
+    for (let i = 0; i < itemsInCellRect.length; i++) {
+      const other = itemsInCellRect[i];
+
       if (!visited[other]) {
         visited[other] = true;
 
@@ -349,8 +348,8 @@ export class World {
     return rect;
   }
 
-  getDictItemsInCellRect(cellRect: IRect): Record<string, boolean> {
-    const items_dict: Record<string, boolean> = {};
+  private getItemsInCellRect(cellRect: IRect): IItemInfo['item'][] {
+    const results = [];
 
     for (let cy = cellRect.y; cy <= cellRect.y + cellRect.h - 1; cy++) {
       let row = this.rows[cy];
@@ -361,18 +360,17 @@ export class World {
 
           if (cell?.items && Object.keys(cell.items)?.length > 0)
             // no cell.itemCount > 1 because tunneling
-            for (const itemID of Object.keys(cell.items))
-              items_dict[itemID] = true;
+            results.push(...Object.keys(cell.items));
         }
     }
 
-    return items_dict;
+    return results;
   }
 
   // Optimized version of getDictItemsInCellRect only used in
   // queryPoint, made to avoid an unneeded object creation.
-  getDictItemsInCellPoint(x: number, y: number): Record<string, boolean> {
-    const items_dict: Record<string, boolean> = {};
+  getItemsInCellPoint(x: number, y: number): IItemInfo['item'][] {
+    const items: string[] = [];
 
     for (let cy = y; cy <= y; cy++) {
       let row = this.rows[cy];
@@ -383,12 +381,11 @@ export class World {
 
           if (cell?.items && Object.keys(cell.items)?.length > 0)
             // no cell.itemCount > 1 because tunneling
-            for (const itemID of Object.keys(cell.items))
-              items_dict[itemID] = true;
+            items.push(...Object.keys(cell.items));
         }
     }
 
-    return items_dict;
+    return items;
   }
 
   private removeItemFromCell(itemID: string, cx: number, cy: number): boolean {
@@ -424,11 +421,11 @@ export class World {
     assertIsRect(x, y, w, h);
 
     const cellRect = grid_toCellRect(this.cellSize, { x, y, w, h });
-    const dictItemsInCellRect = this.getDictItemsInCellRect(cellRect);
+    const itemsInCellRect = this.getItemsInCellRect(cellRect);
 
     const items: string[] = [];
 
-    for (const itemID of Object.keys(dictItemsInCellRect))
+    for (const itemID of itemsInCellRect)
       if (
         (!filter || filter(itemID)) &&
         rect_isIntersecting(x, y, w, h, this.getRect(itemID))
@@ -444,16 +441,19 @@ export class World {
     filter?: (other?: string) => boolean
   ): string[] {
     const [cx, cy] = this.toCell(x, y);
-    const dictItemsInCellRect = this.getDictItemsInCellPoint(cx, cy);
+    const itemsInCellRect = this.getItemsInCellPoint(cx, cy);
 
     const items: string[] = [];
 
-    for (const itemID of Object.keys(dictItemsInCellRect))
+    for (let i = 0; i < itemsInCellRect.length; i++) {
+      const itemID = itemsInCellRect[i];
+
       if (
         (!filter || filter(itemID)) &&
         rect_containsPoint(this.getRect(itemID), x, y)
       )
         items.push(itemID);
+    }
 
     return items;
   }
