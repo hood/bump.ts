@@ -267,12 +267,7 @@ export class World {
     let dictItemsInCellRect: Record<
       string,
       boolean
-    > = this.getDictItemsInCellRect(
-      cellRect.x,
-      cellRect.y,
-      cellRect.w,
-      cellRect.h
-    );
+    > = this.getDictItemsInCellRect(cellRect);
 
     for (const other of Object.keys(dictItemsInCellRect)) {
       if (!visited[other]) {
@@ -365,19 +360,36 @@ export class World {
     return rect;
   }
 
-  getDictItemsInCellRect(
-    cl: number,
-    ct: number,
-    cw: number,
-    ch: number
-  ): Record<string, boolean> {
+  getDictItemsInCellRect(cellRect: IRect): Record<string, boolean> {
     const items_dict: Record<string, boolean> = {};
 
-    for (let cy = ct; cy <= ct + ch - 1; cy++) {
+    for (let cy = cellRect.y; cy <= cellRect.y + cellRect.h - 1; cy++) {
       let row = this.rows[cy];
 
       if (row)
-        for (let cx = cl; cx <= cl + cw - 1; cx++) {
+        for (let cx = cellRect.x; cx <= cellRect.x + cellRect.w - 1; cx++) {
+          let cell = row[cx];
+
+          if (cell?.items && Object.keys(cell.items)?.length > 0)
+            // no cell.itemCount > 1 because tunneling
+            for (const itemID of Object.keys(cell.items))
+              items_dict[itemID] = true;
+        }
+    }
+
+    return items_dict;
+  }
+
+  // Optimized version of getDictItemsInCellRect only used in
+  // queryPoint, made to avoid an unneeded object creation.
+  getDictItemsInCellPoint(x: number, y: number): Record<string, boolean> {
+    const items_dict: Record<string, boolean> = {};
+
+    for (let cy = y; cy <= y; cy++) {
+      let row = this.rows[cy];
+
+      if (row)
+        for (let cx = x; cx <= x; cx++) {
           let cell = row[cx];
 
           if (cell?.items && Object.keys(cell.items)?.length > 0)
@@ -423,12 +435,7 @@ export class World {
     assertIsRect(x, y, w, h);
 
     const cellRect = grid_toCellRect(this.cellSize, x, y, w, h);
-    const dictItemsInCellRect = this.getDictItemsInCellRect(
-      cellRect.x,
-      cellRect.y,
-      cellRect.w,
-      cellRect.h
-    );
+    const dictItemsInCellRect = this.getDictItemsInCellRect(cellRect);
 
     const items: string[] = [];
 
@@ -448,7 +455,7 @@ export class World {
     filter?: (other?: string) => boolean
   ): string[] {
     const [cx, cy] = this.toCell(x, y);
-    const dictItemsInCellRect = this.getDictItemsInCellRect(cx, cy, 1, 1);
+    const dictItemsInCellRect = this.getDictItemsInCellPoint(cx, cy);
 
     const items: string[] = [];
 
