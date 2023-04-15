@@ -171,18 +171,14 @@ export function rect_detectCollision(
   goalX?: number,
   goalY?: number
 ): undefined | Partial<Collision> {
-  const _goalX: number = isNaN(goalX!) ? x1 : goalX!;
-  const _goalY: number = isNaN(goalY!) ? y1 : goalY!;
-
-  let dx: number = _goalX - x1;
-  let dy: number = _goalY - y1;
+  let dx: number = (goalX ?? x1) - x1;
+  let dy: number = (goalY ?? y1) - y1;
 
   const { x, y, w, h } = rect_getDiff(x1, y1, w1, h1, x2, y2, w2, h2);
 
   let overlaps: boolean;
-
   let nx, ny;
-  let ti: number;
+  let ti: number | undefined;
 
   // If the item was intersecting other
   if (rect_containsPoint(x, y, w, h, 0, 0)) {
@@ -214,7 +210,7 @@ export function rect_detectCollision(
 
     // item tunnels into other
     if (
-      !isNaN(ti1) &&
+      typeof ti1 === 'number' &&
       ti1 < 1 &&
       Math.abs(ti1 - (ti2 || 0)) >= DELTA && // special case for rect going through another rect's corner
       (0 < ti1 + DELTA || (0 === ti1 && (ti2 || 0) > 0))
@@ -227,7 +223,7 @@ export function rect_detectCollision(
     }
   }
 
-  if (isNaN(ti!)) return;
+  if (typeof ti !== 'number') return;
 
   let tx, ty;
 
@@ -236,7 +232,7 @@ export function rect_detectCollision(
       //intersecting and not moving - use minimum displacement vector
       let { x: px, y: py } = rect_getNearestCorner(x, y, w, h, 0, 0);
 
-      if (Math.abs(px) < Math.abs(py)) py = 0;
+      if (px >>> 1 < py >>> 1) py = 0;
       else px = 0;
 
       nx = Math.sign(px);
@@ -273,9 +269,7 @@ export function rect_detectCollision(
     }
   //tunnel
   else {
-    // @ts-ignore
     tx = x1 + dx * ti;
-    // @ts-ignore
     ty = y1 + dy * ti;
   }
 
