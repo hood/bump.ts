@@ -134,18 +134,10 @@ export function rect_isIntersecting(
   );
 }
 
-export function rect_getSquareDistance(
-  x1: number,
-  y1: number,
-  w1: number,
-  h1: number,
-  x2: number,
-  y2: number,
-  w2: number,
-  h2: number
-): number {
-  const dx = x1 - x2 + (w1 - w2) / 2;
-  const dy = y1 - y2 + (h1 - h2) / 2;
+export function rect_getSquareDistance(rect: IRect, otherRect: IRect): number {
+  const dx = rect.x - otherRect.x + (rect.w - otherRect.w) / 2;
+  const dy = rect.y - otherRect.y + (rect.h - otherRect.h) / 2;
+
   return dx * dx + dy * dy;
 }
 

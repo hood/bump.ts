@@ -17,26 +17,8 @@ export default function sortByTiAndDistance(a: Item, b: Item): number {
     const ar: IRect = a.otherRect;
     const br: IRect = b.otherRect;
 
-    const ad = rect_getSquareDistance(
-      ir.x,
-      ir.y,
-      ir.w,
-      ir.h,
-      ar.x,
-      ar.y,
-      ar.w,
-      ar.h
-    );
-    const bd = rect_getSquareDistance(
-      ir.x,
-      ir.y,
-      ir.w,
-      ir.h,
-      br.x,
-      br.y,
-      br.w,
-      br.h
-    );
+    const ad = rect_getSquareDistance(ir, ar);
+    const bd = rect_getSquareDistance(ir, br);
 
     return ad - bd;
   }
