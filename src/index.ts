@@ -232,18 +232,13 @@ export class World {
 
   project(
     itemID: string | null,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
+    rect: IRect,
     goalX?: number,
     goalY?: number,
     filter?: (item: string, other: string) => ResponseType | false
   ): Collision[] {
-    assertIsRect(x, y, w, h);
-
-    const _goalX = goalX ?? x;
-    const _goalY = goalY ?? y;
+    const _goalX = goalX ?? rect.x;
+    const _goalY = goalY ?? rect.y;
 
     const _filter = filter || defaultFilter;
 
@@ -256,11 +251,13 @@ export class World {
     // This could probably be done with less cells using a polygon raster over
     // the cells instead of a bounding rect of the whole movement. Conditional
     // to building a queryPolygon method.
-    let tl: number = _goalX !== x ? Math.min(_goalX, x) : _goalX;
-    let tt: number = _goalY !== y ? Math.min(_goalY, y) : _goalY;
+    let tl: number = _goalX !== rect.x ? Math.min(_goalX, rect.x) : _goalX;
+    let tt: number = _goalY !== rect.y ? Math.min(_goalY, rect.y) : _goalY;
 
-    let tr: number = _goalX !== x ? Math.max(_goalX + w, x + w) : _goalX;
-    let tb: number = _goalY !== y ? Math.max(_goalY + h, y + h) : _goalY;
+    let tr: number =
+      _goalX !== rect.x ? Math.max(_goalX + rect.w, rect.x + rect.w) : _goalX;
+    let tb: number =
+      _goalY !== rect.y ? Math.max(_goalY + rect.h, rect.y + rect.h) : _goalY;
 
     let tw: number = tr - tl;
     let th: number = tb - tt;
@@ -289,10 +286,10 @@ export class World {
           let otherRect = this.getRect(other);
 
           let collision: Partial<Collision> | undefined = rect_detectCollision(
-            x,
-            y,
-            w,
-            h,
+            rect.x,
+            rect.y,
+            rect.w,
+            rect.h,
             otherRect.x,
             otherRect.y,
             otherRect.w,
@@ -688,10 +685,7 @@ export class World {
 
     let projectedCollisions: Collision[] = this.project(
       itemID,
-      itemRect.x,
-      itemRect.y,
-      itemRect.w,
-      itemRect.h,
+      itemRect,
       goalX,
       goalY,
       visitedFilter
