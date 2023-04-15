@@ -377,7 +377,7 @@ export class World {
     for (let cy = ct; cy <= ct + ch - 1; cy++) {
       let row = this.rows[cy];
 
-      if (row) {
+      if (row)
         for (let cx = cl; cx <= cl + cw - 1; cx++) {
           let cell = row[cx];
 
@@ -386,7 +386,6 @@ export class World {
             for (const itemID of Object.keys(cell.items))
               items_dict[itemID] = true;
         }
-      }
     }
 
     return items_dict;
@@ -493,7 +492,8 @@ export class World {
 
     const items: string[] = [];
 
-    if (itemsInfo) for (const itemInfo of itemsInfo) items.push(itemInfo.item);
+    if (itemsInfo)
+      for (let i = 0; i < itemsInfo.length; i++) items.push(itemsInfo[i].item);
 
     return items;
   }
