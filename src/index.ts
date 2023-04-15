@@ -121,7 +121,9 @@ function getInfoAboutItemsTouchedBySegment(
   let visited: Record<string, boolean> = {};
   let itemInfo: IItemInfo[] = [];
 
-  for (const cell of cells) {
+  for (let i = 0; i < cells.length; i++) {
+    const cell = cells[i];
+
     if (cell?.items)
       for (const itemID of Object.keys(cell.items)) {
         if (!visited[itemID]) {
@@ -134,7 +136,7 @@ function getInfoAboutItemsTouchedBySegment(
             w = rect.w;
             h = rect.h;
 
-            const arr1 = rect_getSegmentIntersectionIndices(
+            const intersections1 = rect_getSegmentIntersectionIndices(
               l,
               t,
               w,
@@ -147,15 +149,17 @@ function getInfoAboutItemsTouchedBySegment(
               1
             );
 
-            ti1 = arr1![0];
-            ti2 = arr1![1];
+            if (!intersections1) continue;
+
+            ti1 = intersections1[0];
+            ti2 = intersections1[1];
 
             if (
               !isNaN(ti1 as number) &&
               ((0 < ti1! && ti1! < 1) || (0 < ti2! && ti2! < 1))
             ) {
               // -- the sorting is according to the t of an infinite line, not the segment
-              const [tii0, tii1] = rect_getSegmentIntersectionIndices(
+              const intersections2 = rect_getSegmentIntersectionIndices(
                 l,
                 t,
                 w,
@@ -167,6 +171,10 @@ function getInfoAboutItemsTouchedBySegment(
                 -Number.MAX_SAFE_INTEGER,
                 Number.MAX_SAFE_INTEGER
               );
+
+              if (!intersections2) continue;
+
+              const [tii0, tii1] = intersections2;
 
               itemInfo.push({
                 item: itemID,

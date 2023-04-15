@@ -28,7 +28,7 @@ export function rect_getSegmentIntersectionIndices(
   y2: number,
   ti1: number,
   ti2: number
-): [number?, number?, number?, number?, number?, number?] {
+): [number, number, number, number, number, number] | undefined {
   let _ti1 = isNaN(ti1) ? 0 : ti1;
   let _ti2 = isNaN(ti2) ? 1 : ti2;
 
@@ -42,7 +42,7 @@ export function rect_getSegmentIntersectionIndices(
   let ny2: number = 0;
   let p, q, r;
 
-  for (const side of [1, 2, 3, 4]) {
+  for (let side = 1; side < 5; side++) {
     // left
     if (side === 1) {
       nx = -1;
@@ -73,28 +73,12 @@ export function rect_getSegmentIntersectionIndices(
     }
 
     if (p === 0) {
-      if (q <= 0)
-        return [
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-        ];
+      if (q <= 0) return undefined;
     } else {
       r = q / p;
 
       if (p < 0) {
-        if (r > _ti2)
-          return [
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-          ];
+        if (r > _ti2) return undefined;
         else if (r > _ti1) {
           _ti1 = r;
           nx1 = nx;
@@ -102,15 +86,7 @@ export function rect_getSegmentIntersectionIndices(
         }
       } // p > 0
       else {
-        if (r < _ti1)
-          return [
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-          ];
+        if (r < _ti1) return undefined;
         else if (r < _ti2) {
           _ti2 = r;
           nx2 = nx;
@@ -219,7 +195,7 @@ export function rect_detectCollision(
 
     overlaps = true;
   } else {
-    let [ti1, ti2, nx1, ny1] = rect_getSegmentIntersectionIndices(
+    const insersections = rect_getSegmentIntersectionIndices(
       x,
       y,
       w,
@@ -232,8 +208,9 @@ export function rect_detectCollision(
       Number.MAX_SAFE_INTEGER
     );
 
-    // To make the compiler stop complaining
-    ti1 = ti1!;
+    if (!insersections) return;
+
+    const [ti1, ti2, nx1, ny1] = insersections;
 
     // item tunnels into other
     if (
@@ -268,9 +245,8 @@ export function rect_detectCollision(
       tx = x1 + px;
       ty = y1 + py;
     } else {
-      //intersecting and moving - move in the opposite direction
-      // @ts-ignore
-      let [ti1, _, _nx, _ny] = rect_getSegmentIntersectionIndices(
+      // Intersecting and moving - move in the opposite direction.
+      const insersections = rect_getSegmentIntersectionIndices(
         x,
         y,
         w,
@@ -282,6 +258,11 @@ export function rect_detectCollision(
         -Number.MAX_SAFE_INTEGER,
         1
       );
+
+      if (!insersections) return;
+
+      const [ti1, _, _nx, _ny] = insersections;
+
       nx = _nx;
       ny = _ny;
 
