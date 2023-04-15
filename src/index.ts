@@ -240,8 +240,8 @@ export class World {
   ): Collision[] {
     assertIsRect(x, y, w, h);
 
-    const _goalX = isNaN(goalX!) ? x : goalX!;
-    const _goalY = isNaN(goalY!) ? y : goalY!;
+    const _goalX = goalX ?? x;
+    const _goalY = goalY ?? y;
 
     const _filter = filter || defaultFilter;
 
@@ -254,11 +254,11 @@ export class World {
     // This could probably be done with less cells using a polygon raster over
     // the cells instead of a bounding rect of the whole movement. Conditional
     // to building a queryPolygon method.
-    let tl: number = Math.min(_goalX, x);
-    let tt: number = Math.min(_goalY, y);
+    let tl: number = _goalX !== x ? Math.min(_goalX, x) : _goalX;
+    let tt: number = _goalY !== y ? Math.min(_goalY, y) : _goalY;
 
-    let tr: number = Math.max(_goalX + w, x + w);
-    let tb: number = Math.max(_goalY + h, y + h);
+    let tr: number = _goalX !== x ? Math.max(_goalX + w, x + w) : _goalX;
+    let tb: number = _goalY !== y ? Math.max(_goalY + h, y + h) : _goalY;
 
     let tw: number = tr - tl;
     let th: number = tb - tt;
