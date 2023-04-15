@@ -3,14 +3,14 @@ import { DELTA } from './constants';
 import nearest from './helpers/generic/nearest';
 
 export function rect_getNearestCorner(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
+  rect: IRect,
   px: number,
   py: number
 ): ICoords {
-  return { x: nearest(px, x, x + w), y: nearest(py, y, y + h) };
+  return {
+    x: nearest(px, rect.x, rect.x + rect.w),
+    y: nearest(py, rect.y, rect.y + rect.h),
+  };
 }
 
 // This is a generalized implementation of the liang-barsky algorithm, which also returns
@@ -18,10 +18,7 @@ export function rect_getNearestCorner(
 // Returns null if the segment never touches the rect
 // Notice that normals are only guaranteed to be accurate when initially ti1, ti2 == -math.huge, math.huge
 export function rect_getSegmentIntersectionIndices(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
+  rect: IRect,
   x1: number,
   y1: number,
   x2: number,
@@ -48,28 +45,28 @@ export function rect_getSegmentIntersectionIndices(
       nx = -1;
       ny = 0;
       p = -dx;
-      q = x1 - x;
+      q = x1 - rect.x;
     }
     // right
     else if (side === 2) {
       nx = 1;
       ny = 0;
       p = dx;
-      q = x + w - x1;
+      q = rect.x + rect.w - x1;
     }
     // top
     else if (side === 3) {
       nx = 0;
       ny = -1;
       p = -dy;
-      q = y1 - y;
+      q = y1 - rect.y;
     }
     // bottom
     else {
       nx = 0;
       ny = 1;
       p = dy;
-      q = y + h - y1;
+      q = rect.y + rect.h - y1;
     }
 
     if (p === 0) {
@@ -161,15 +158,15 @@ export function rect_detectCollision(
   let dx: number = (goalX ?? rect.x) - rect.x;
   let dy: number = (goalY ?? rect.y) - rect.y;
 
-  const { x, y, w, h } = rect_getDiff(rect, otherRect);
+  const diffRect = rect_getDiff(rect, otherRect);
 
   let overlaps: boolean;
   let nx, ny;
   let ti: number | undefined;
 
   // If the item was intersecting other
-  if (rect_containsPoint({ x, y, w, h }, 0, 0)) {
-    let { x: px, y: py } = rect_getNearestCorner(x, y, w, h, 0, 0);
+  if (rect_containsPoint(diffRect, 0, 0)) {
+    let { x: px, y: py } = rect_getNearestCorner(rect, 0, 0);
 
     let wi: number = Math.min(rect.w, Math.abs(px)); // area of intersection
     let hi: number = Math.min(rect.h, Math.abs(py)); // area of intersection
@@ -179,10 +176,7 @@ export function rect_detectCollision(
     overlaps = true;
   } else {
     const insersections = rect_getSegmentIntersectionIndices(
-      x,
-      y,
-      w,
-      h,
+      diffRect,
       0,
       0,
       dx,
@@ -217,7 +211,7 @@ export function rect_detectCollision(
   if (overlaps!)
     if (dx === 0 && dy === 0) {
       //intersecting and not moving - use minimum displacement vector
-      let { x: px, y: py } = rect_getNearestCorner(x, y, w, h, 0, 0);
+      let { x: px, y: py } = rect_getNearestCorner(diffRect, 0, 0);
 
       if (px >>> 1 < py >>> 1) py = 0;
       else px = 0;
@@ -230,10 +224,7 @@ export function rect_detectCollision(
     } else {
       // Intersecting and moving - move in the opposite direction.
       const insersections = rect_getSegmentIntersectionIndices(
-        x,
-        y,
-        w,
-        h,
+        diffRect,
         0,
         0,
         dx,

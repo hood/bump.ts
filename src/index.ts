@@ -116,7 +116,7 @@ function getInfoAboutItemsTouchedBySegment(
   filter?: (other?: string) => boolean
 ): { item: string; ti1: number; ti2: number; weight: number | null }[] {
   let cells = getCellsTouchedBySegment(self, x1, y1, x2, y2);
-  let rect, l, t, w, h, ti1, ti2;
+  let rect, ti1, ti2;
 
   let visited: Record<string, boolean> = {};
   let itemInfo: IItemInfo[] = [];
@@ -131,16 +131,9 @@ function getInfoAboutItemsTouchedBySegment(
 
           if (!filter || filter(itemID)) {
             rect = self['getRect'](itemID);
-            l = rect.x;
-            t = rect.y;
-            w = rect.w;
-            h = rect.h;
 
             const intersections1 = rect_getSegmentIntersectionIndices(
-              l,
-              t,
-              w,
-              h,
+              rect,
               x1,
               y1,
               x2,
@@ -160,10 +153,7 @@ function getInfoAboutItemsTouchedBySegment(
             ) {
               // -- the sorting is according to the t of an infinite line, not the segment
               const intersections2 = rect_getSegmentIntersectionIndices(
-                l,
-                t,
-                w,
-                h,
+                rect,
                 x1,
                 y1,
                 x2,
