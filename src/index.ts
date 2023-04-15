@@ -706,10 +706,7 @@ export class World {
       const { x, y, collisions } = response(
         this,
         collision,
-        itemRect.x,
-        itemRect.y,
-        itemRect.w,
-        itemRect.h,
+        itemRect,
         goalX,
         goalY,
         visitedFilter

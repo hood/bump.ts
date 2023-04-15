@@ -1,12 +1,9 @@
-import { Collision, ICoords, World } from '../../index';
+import { Collision, ICoords, IRect, World } from '../../index';
 
 export type Response = (
   world: World,
   col: any,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
+  rect: IRect,
   goalX: number,
   goalY: number,
   filter: any
@@ -21,10 +18,7 @@ export function touch(
     slide: ICoords;
     item: any;
   },
-  _x: number,
-  _y: number,
-  _w: number,
-  _h: number,
+  _rect: IRect,
   _goalX: number,
   _goalY: number,
   _filter: any
@@ -41,24 +35,12 @@ export function cross(
     slide: ICoords;
     item: any;
   },
-  x: number,
-  y: number,
-  w: number,
-  h: number,
+  rect: IRect,
   goalX: number,
   goalY: number,
   filter: any
 ): ReturnType<Response> {
-  const collisions = world.project(
-    column.item,
-    x,
-    y,
-    w,
-    h,
-    goalX,
-    goalY,
-    filter
-  );
+  const collisions = world.project(column.item, rect, goalX, goalY, filter);
 
   return { x: goalX, y: goalY, collisions };
 }
@@ -72,16 +54,13 @@ export function slide(
     slide: ICoords;
     item: any;
   },
-  x: number,
-  y: number,
-  w: number,
-  h: number,
+  rect: IRect,
   goalX: number,
   goalY: number,
   filter?: any
 ): ReturnType<Response> {
-  let _goalX: number = isNaN(goalX) ? x : goalX;
-  let _goalY: number = isNaN(goalY) ? y : goalY;
+  let _goalX: number = goalX ?? rect.x;
+  let _goalY: number = goalY ?? rect.y;
 
   const tch: ICoords = column.touch;
   const move: ICoords = column.move;
@@ -90,6 +69,7 @@ export function slide(
     if (column.normal.x !== 0) _goalX = tch.x;
     else _goalY = tch.y;
 
+  // TODO: What does his affect?
   column.slide = { x: _goalX, y: _goalY };
 
   const _x: number = tch.x;
@@ -97,7 +77,7 @@ export function slide(
 
   const collisions = world.project(
     column.item,
-    { x: _x, y: _y, w, h },
+    { x: _x, y: _y, w: rect.w, h: rect.h },
     _goalX,
     _goalY,
     filter
@@ -109,16 +89,13 @@ export function slide(
 export function bounce(
   world: World,
   collision: any,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
+  rect: IRect,
   goalX?: number,
   goalY?: number,
   filter?: any
 ): ReturnType<Response> {
-  const _goalX: number = isNaN(goalX as number) ? x : goalX!;
-  const _goalY: number = isNaN(goalY as number) ? y : goalY!;
+  let _goalX: number = goalX ?? rect.x;
+  let _goalY: number = goalY ?? rect.y;
 
   const { touch, move } = collision;
 
@@ -140,7 +117,7 @@ export function bounce(
 
   const collisions = world.project(
     collision.item,
-    { x: touch.x, y: touch.y, w, h },
+    { x: touch.x, y: touch.y, w: rect.w, h: rect.h },
     bx,
     by,
     filter
