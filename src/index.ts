@@ -245,9 +245,13 @@ export class World {
     const tt: number = _goalY !== rect.y ? Math.min(_goalY, rect.y) : _goalY;
 
     const tr: number =
-      _goalX !== rect.x ? Math.max(_goalX + rect.w, rect.x + rect.w) : _goalX;
+      _goalX !== rect.x
+        ? Math.max(_goalX + rect.w, rect.x + rect.w)
+        : _goalX + rect.w;
     const tb: number =
-      _goalY !== rect.y ? Math.max(_goalY + rect.h, rect.y + rect.h) : _goalY;
+      _goalY !== rect.y
+        ? Math.max(_goalY + rect.h, rect.y + rect.h)
+        : _goalY + rect.h;
 
     const tw: number = tr - tl;
     const th: number = tb - tt;
@@ -360,11 +364,11 @@ export class World {
 
           if (cell?.items && Object.keys(cell.items)?.length > 0)
             // no cell.itemCount > 1 because tunneling
-            results.push(...Object.keys(cell.items));
+            results.push(Object.keys(cell.items));
         }
     }
 
-    return results;
+    return results.flat();
   }
 
   // Optimized version of getDictItemsInCellRect only used in

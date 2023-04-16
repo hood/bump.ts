@@ -159,11 +159,11 @@ describe('Bump world', () => {
 
       const itemID = world.add('TEST_ITEM', 0, 0, 10, 10);
 
-      expect(world['rects'].hasOwnProperty(itemID)).toBe(true);
+      expect(world['rects'].get(itemID)).toBeTruthy();
 
       world.remove(itemID);
 
-      expect(world['rects'].hasOwnProperty(itemID)).toBe(false);
+      expect(world['rects'].get(itemID)).toBeFalsy();
     });
 
     it("should remove the item ID from the containing world's cell", () => {
