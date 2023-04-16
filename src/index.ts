@@ -232,7 +232,7 @@ export class World {
 
     const _filter = filter || defaultFilter;
 
-    let collisions: Collision[] = [];
+    const collisions: Collision[] = [];
 
     let visited: Record<string, boolean> = {};
 
@@ -241,25 +241,25 @@ export class World {
     // This could probably be done with less cells using a polygon raster over
     // the cells instead of a bounding rect of the whole movement. Conditional
     // to building a queryPolygon method.
-    let tl: number = _goalX !== rect.x ? Math.min(_goalX, rect.x) : _goalX;
-    let tt: number = _goalY !== rect.y ? Math.min(_goalY, rect.y) : _goalY;
+    const tl: number = _goalX !== rect.x ? Math.min(_goalX, rect.x) : _goalX;
+    const tt: number = _goalY !== rect.y ? Math.min(_goalY, rect.y) : _goalY;
 
-    let tr: number =
+    const tr: number =
       _goalX !== rect.x ? Math.max(_goalX + rect.w, rect.x + rect.w) : _goalX;
-    let tb: number =
+    const tb: number =
       _goalY !== rect.y ? Math.max(_goalY + rect.h, rect.y + rect.h) : _goalY;
 
-    let tw: number = tr - tl;
-    let th: number = tb - tt;
+    const tw: number = tr - tl;
+    const th: number = tb - tt;
 
-    let cellRect = grid_toCellRect(this.cellSize, {
+    const cellRect = grid_toCellRect(this.cellSize, {
       x: tl,
       y: tt,
       w: tw,
       h: th,
     });
 
-    let itemsInCellRect = this.getItemsInCellRect(cellRect);
+    const itemsInCellRect = this.getItemsInCellRect(cellRect);
 
     for (let i = 0; i < itemsInCellRect.length; i++) {
       const other = itemsInCellRect[i];
@@ -272,14 +272,11 @@ export class World {
         const responseName: ResponseType | false = _filter(itemID!, other);
 
         if (responseName !== false) {
-          let otherRect = this.getRect(other);
+          const otherRect = this.getRect(other);
 
-          let collision: Partial<Collision> | undefined = rect_detectCollision(
-            rect,
-            otherRect,
-            _goalX,
-            _goalY
-          );
+          const collision:
+            | Partial<Collision>
+            | undefined = rect_detectCollision(rect, otherRect, _goalX, _goalY);
 
           if (collision) {
             collision.other = other;
