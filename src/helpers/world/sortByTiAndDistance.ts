@@ -12,16 +12,11 @@ interface Item {
 }
 
 export default function sortByTiAndDistance(a: Item, b: Item): number {
-  if (a.ti === b.ti) {
-    const ir: IRect = a.itemRect;
-    const ar: IRect = a.otherRect;
-    const br: IRect = b.otherRect;
-
-    const ad = rect_getSquareDistance(ir, ar);
-    const bd = rect_getSquareDistance(ir, br);
-
-    return ad - bd;
-  }
+  if (a.ti === b.ti)
+    return (
+      rect_getSquareDistance(a.itemRect, a.otherRect) -
+      rect_getSquareDistance(a.itemRect, b.otherRect)
+    );
 
   return a.ti - b.ti;
 }

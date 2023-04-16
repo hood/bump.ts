@@ -234,9 +234,9 @@ export class World {
 
     const collisions: Collision[] = [];
 
-    let visited: Record<string, boolean> = {};
+    let visited: Set<string> = new Set();
 
-    if (itemID) visited[itemID] = true;
+    if (itemID) visited.add(itemID);
 
     // This could probably be done with less cells using a polygon raster over
     // the cells instead of a bounding rect of the whole movement. Conditional
@@ -264,27 +264,30 @@ export class World {
     for (let i = 0; i < itemsInCellRect.length; i++) {
       const other = itemsInCellRect[i];
 
-      if (!visited[other]) {
-        visited[other] = true;
+      if (!visited.has(other)) {
+        visited.add(other);
 
         if (!this.hasItem(other)) continue;
 
         const responseName: ResponseType | false = _filter(itemID!, other);
 
         if (responseName !== false) {
-          const otherRect = this.getRect(other);
-
           const collision:
             | Partial<Collision>
-            | undefined = rect_detectCollision(rect, otherRect, _goalX, _goalY);
+            | undefined = rect_detectCollision(
+            rect,
+            this.getRect(other),
+            _goalX,
+            _goalY
+          );
 
-          if (collision) {
-            collision.other = other;
-            collision.item = itemID;
-            collision.type = responseName;
-
-            collisions.push(collision as Collision);
-          }
+          if (collision)
+            collisions.push({
+              ...collision,
+              other,
+              item: itemID,
+              type: responseName,
+            } as Collision);
         }
       }
     }
