@@ -1,7 +1,7 @@
 import Bump from '../src/index';
 
 function collect(list: any[], fieldName: string): any[] {
-  return list.map((item) => item[fieldName]);
+  return list.map(item => item[fieldName]);
 }
 
 describe('Bump world', () => {
@@ -91,7 +91,9 @@ describe('Bump world', () => {
     it('should return an empty list of collisions when the world is empty', () => {
       const world = Bump.newWorld(64);
 
-      expect(world.project('TEST_ITEM', 1, 2, 3, 4)).toEqual([]);
+      expect(world.project('TEST_ITEM', { x: 1, y: 2, w: 3, h: 4 })).toEqual(
+        []
+      );
     });
 
     it('should return a list of collisions when the world is not empty', () => {
@@ -100,7 +102,9 @@ describe('Bump world', () => {
       world.add('TEST_ITEM1', 0, 0, 10, 10);
       world.add('TEST_ITEM2', 14, 16, 10, 10);
 
-      expect(world.project('-', 4, 6, 10, 10).length).toEqual(1);
+      expect(world.project('-', { x: 4, y: 6, w: 10, h: 10 }).length).toEqual(
+        1
+      );
     });
 
     it('still handles intersections as before when next future X & Y are passed', () => {
@@ -108,7 +112,9 @@ describe('Bump world', () => {
 
       world.add('TEST_ITEM', 0, 0, 2, 2);
 
-      expect(world.project(null, 1, 1, 2, 2, 1, 1).length).toEqual(1);
+      expect(
+        world.project(null, { x: 1, y: 1, w: 2, h: 2 }, 1, 1).length
+      ).toEqual(1);
     });
 
     it('should return list of collisions sorted by ti', () => {
@@ -118,7 +124,12 @@ describe('Bump world', () => {
       world.add('TEST_ITEM2', 50, 0, 10, 10);
       world.add('TEST_ITEM3', 90, 0, 10, 10);
 
-      const collisions = world.project('_', 110, 0, 10, 10, 10, 0);
+      const collisions = world.project(
+        '_',
+        { x: 110, y: 0, w: 10, h: 10 },
+        10,
+        0
+      );
 
       expect(collect(collisions, 'ti')).toEqual([0.1, 0.3, 0.5]);
     });
@@ -136,11 +147,11 @@ describe('Bump world', () => {
 
       const itemID = world.add('TEST_ITEM', 0, 0, 10, 10);
 
-      expect(world.project('-', 5, 0, 1, 1).length).toEqual(1);
+      expect(world.project('-', { x: 5, y: 0, w: 1, h: 1 }).length).toEqual(1);
 
       world.remove(itemID);
 
-      expect(world.project('-', 5, 0, 1, 1).length).toEqual(0);
+      expect(world.project('-', { x: 5, y: 0, w: 1, h: 1 }).length).toEqual(0);
     });
 
     it("should remove the item ID from the world's rect's keys", () => {
@@ -161,16 +172,16 @@ describe('Bump world', () => {
       const itemID = world.add('TEST_ITEM', 0, 0, 10, 10);
 
       expect(
-        world['rows'].some((cols) =>
-          cols.some((cell) => cell.items.hasOwnProperty(itemID))
+        world['rows'].some(cols =>
+          cols.some(cell => cell.items.hasOwnProperty(itemID))
         )
       ).toBe(true);
 
       world.remove(itemID);
 
       expect(
-        world['rows'].some((cols) =>
-          cols.some((cell) => cell.items.hasOwnProperty(itemID))
+        world['rows'].some(cols =>
+          cols.some(cell => cell.items.hasOwnProperty(itemID))
         )
       ).toBe(false);
     });

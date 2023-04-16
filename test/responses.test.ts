@@ -16,14 +16,8 @@ function touch(
   goalY?: number
 ) {
   const collision = rect_detectCollision(
-    x,
-    y,
-    w,
-    h,
-    ox,
-    oy,
-    ow,
-    oh,
+    { x, y, w, h },
+    { x: ox, y: oy, w: ow, h: oh },
     goalX,
     goalY
   );
@@ -49,20 +43,14 @@ function slide(
   goalY?: number
 ) {
   const collision = rect_detectCollision(
-    x,
-    y,
-    w,
-    h,
-    ox,
-    oy,
-    ow,
-    oh,
+    { x, y, w, h },
+    { x: ox, y: oy, w: ow, h: oh },
     goalX,
     goalY
   );
 
   // @ts-ignore
-  Bump.responses.slide(world, collision, x, y, w, h, goalX!, goalY!);
+  Bump.responses.slide(world, collision, { x, y, w, h }, goalX!, goalY!);
 
   return [
     collision!.touch!.x,
@@ -87,19 +75,13 @@ function bounce(
   goalY?: number
 ) {
   const collision = rect_detectCollision(
-    x,
-    y,
-    w,
-    h,
-    ox,
-    oy,
-    ow,
-    oh,
+    { x, y, w, h },
+    { x: ox, y: oy, w: ow, h: oh },
     goalX,
     goalY
   );
 
-  Bump.responses.bounce(world, collision, x, y, w, h, goalX, goalY);
+  Bump.responses.bounce(world, collision, { x, y, w, h }, goalX, goalY);
 
   return [
     collision!.touch!.x,
@@ -113,7 +95,7 @@ function bounce(
 
 describe('responses', () => {
   describe('touch', () => {
-    it('should return the left ,top coordinates of the minimum displacement on static items when there is no movement when resolvicng collisions on overlaps', () => {
+    it('should return the left,top coordinates of the minimum displacement on static items when there is no movement when resolvicng collisions on overlaps', () => {
       //                                          -2-1 0 1 2 3 4 5 6 7 8 9 10
       //      -2 -1 0 1 2 3 4 5 6 7 8 9           -2 · ┌–––┐ · ┌–––┐ · ┌–––┐ ·
       //      -1  ┌–––┐ · ┌–––┐ · ┌–––┐           -1 · │0-1│ · │0-1│ · │0-1│ ·

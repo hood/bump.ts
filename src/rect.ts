@@ -158,7 +158,7 @@ export function rect_detectCollision(
 
   // If the item was intersecting other
   if (rect_containsPoint(diffRect, 0, 0)) {
-    let { x: px, y: py } = rect_getNearestCorner(rect, 0, 0);
+    let { x: px, y: py } = rect_getNearestCorner(diffRect, 0, 0);
 
     let wi: number = Math.min(rect.w, Math.abs(px)); // area of intersection
     let hi: number = Math.min(rect.h, Math.abs(py)); // area of intersection
