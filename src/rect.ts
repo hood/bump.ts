@@ -167,7 +167,7 @@ export function rect_detectCollision(
 
     overlaps = true;
   } else {
-    const insersections = rect_getSegmentIntersectionIndices(
+    const intersections = rect_getSegmentIntersectionIndices(
       diffRect,
       0,
       0,
@@ -177,35 +177,36 @@ export function rect_detectCollision(
       Number.MAX_SAFE_INTEGER
     );
 
-    if (!insersections) return;
+    if (intersections) {
+      const [ti1, ti2, nx1, ny1] = intersections;
 
-    const [ti1, ti2, nx1, ny1] = insersections;
+      // item tunnels into other
+      if (
+        typeof ti1 === 'number' &&
+        ti1 < 1 &&
+        Math.abs(ti1 - (ti2 || 0)) >= DELTA && // special case for rect going through another rect's corner
+        (0 < ti1 + DELTA || (0 === ti1 && (ti2 || 0) > 0))
+      ) {
+        ti = ti1;
+        nx = nx1;
+        ny = ny1;
 
-    // item tunnels into other
-    if (
-      typeof ti1 === 'number' &&
-      ti1 < 1 &&
-      Math.abs(ti1 - (ti2 || 0)) >= DELTA && // special case for rect going through another rect's corner
-      (0 < ti1 + DELTA || (0 === ti1 && (ti2 || 0) > 0))
-    ) {
-      ti = ti1;
-      nx = nx1;
-      ny = ny1;
-
-      overlaps = false;
+        overlaps = false;
+      }
     }
   }
 
   if (typeof ti !== 'number') return;
 
-  let tx, ty;
+  let tx: number, ty: number;
 
   if (overlaps!)
     if (dx === 0 && dy === 0) {
       //intersecting and not moving - use minimum displacement vector
       let { x: px, y: py } = rect_getNearestCorner(diffRect, 0, 0);
 
-      if (px >>> 1 < py >>> 1) py = 0;
+      // if (px >>> 1 < py >>> 1) py = 0;
+      if (Math.abs(px) < Math.abs(py)) py = 0;
       else px = 0;
 
       nx = Math.sign(px);
@@ -215,7 +216,7 @@ export function rect_detectCollision(
       ty = rect.y + py;
     } else {
       // Intersecting and moving - move in the opposite direction.
-      const insersections = rect_getSegmentIntersectionIndices(
+      const intersections = rect_getSegmentIntersectionIndices(
         diffRect,
         0,
         0,
@@ -225,17 +226,17 @@ export function rect_detectCollision(
         1
       );
 
-      if (!insersections) return;
+      if (intersections) {
+        const [ti1, _, _nx, _ny] = intersections;
 
-      const [ti1, _, _nx, _ny] = insersections;
+        nx = _nx;
+        ny = _ny;
 
-      nx = _nx;
-      ny = _ny;
+        if (!ti1) return;
 
-      if (!ti1) return;
-
-      tx = rect.x + dx * ti1;
-      ty = rect.y + dy * ti1;
+        tx = rect.x + dx * ti1;
+        ty = rect.y + dy * ti1;
+      }
     }
   //tunnel
   else {
@@ -249,7 +250,7 @@ export function rect_detectCollision(
     ti,
     move: { x: dx, y: dy },
     normal: { x: nx as number, y: ny as number },
-    touch: { x: tx, y: ty },
+    touch: { x: tx!, y: ty! },
     itemRect: rect,
     otherRect,
   };

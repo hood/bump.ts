@@ -62,22 +62,19 @@ export function slide(
   let _goalX: number = goalX ?? rect.x;
   let _goalY: number = goalY ?? rect.y;
 
-  const tch: ICoords = column.touch;
-  const move: ICoords = column.move;
+  const touchCoords: ICoords = column.touch;
+  const moveCoords: ICoords = column.move;
 
-  if (move.x !== 0 || move.y !== 0)
-    if (column.normal.x !== 0) _goalX = tch.x;
-    else _goalY = tch.y;
+  if (moveCoords.x !== 0 || moveCoords.y !== 0)
+    if (column.normal.x !== 0) _goalX = touchCoords.x;
+    else _goalY = touchCoords.y;
 
-  // TODO: What does his affect?
+  // // TODO: What does his affect?
   column.slide = { x: _goalX, y: _goalY };
-
-  const _x: number = tch.x;
-  const _y: number = tch.y;
 
   const collisions = world.project(
     column.item,
-    { x: _x, y: _y, w: rect.w, h: rect.h },
+    { x: touchCoords.x, y: touchCoords.y, w: rect.w, h: rect.h },
     _goalX,
     _goalY,
     filter
