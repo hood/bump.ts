@@ -30,9 +30,10 @@ export function grid_traverse_initStep(
   const v: number = t2 - t1;
 
   if (v > 0) return [1, cellSize / v, ((ct + v) * cellSize - t1) / v];
-  else if (v < 0)
-    return [-1, -cellSize / v, ((ct + v - 1) * cellSize - t1) / v];
-  else return [0, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER];
+
+  if (v < 0) return [-1, -cellSize / v, ((ct + v - 1) * cellSize - t1) / v];
+
+  return [0, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER];
 }
 
 export function grid_traverse(
@@ -56,12 +57,13 @@ export function grid_traverse(
   // when we are *next* to the last cell.
   do {
     if (tx < ty) {
-      [tx, cx] = [tx + dx, cx + stepX];
+      tx = tx + dx;
+      cx = cx + stepX;
 
       traverseFunction(cx, cy);
     } else {
       // Addition: include both cells when going through corners
-      if (tx == ty) traverseFunction(cx + stepX, cy);
+      if (tx === ty) traverseFunction(cx + stepX, cy);
 
       ty = ty + dy;
       cy = cy + stepY;
@@ -71,7 +73,7 @@ export function grid_traverse(
   } while (Math.abs(cx - cx2) + Math.abs(cy - cy2) > 1);
 
   //If we have not arrived to the last cell, use it
-  if (cx != cx2 || cy != cy2) traverseFunction(cx2, cy2);
+  if (cx !== cx2 || cy !== cy2) traverseFunction(cx2, cy2);
 }
 
 export function grid_toCellRect(cellSize: number, rect: IRect): IRect {

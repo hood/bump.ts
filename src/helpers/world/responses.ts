@@ -70,7 +70,7 @@ export function slide(
     else _goalY = touchCoords.y;
 
   // // TODO: What does his affect?
-  column.slide = { x: _goalX, y: _goalY };
+  // column.slide = { x: _goalX, y: _goalY };
 
   const collisions = world.project(
     column.item,
@@ -110,7 +110,7 @@ export function bounce(
     by = touch.y + bny;
   }
 
-  collision.bounce = { x: bx, y: by };
+  // collision.bounce = { x: bx, y: by };
 
   const collisions = world.project(
     collision.item,
