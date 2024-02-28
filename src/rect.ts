@@ -26,8 +26,8 @@ export function rect_getSegmentIntersectionIndices(
   ti1: number,
   ti2: number
 ): [number, number, number, number, number, number] | undefined {
-  let _ti1 = ti1 ?? 0;
-  let _ti2 = ti2 ?? 1;
+  let _ti1 = isNaN(ti1) ? 0 : ti1;
+  let _ti2 = isNaN(ti2) ? 1 : ti2;
 
   let dx: number = x2 - x1;
   let dy: number = y2 - y1;
@@ -158,10 +158,10 @@ export function rect_detectCollision(
 
   // If the item was intersecting other
   if (rect_containsPoint(diffRect, 0, 0)) {
-    let p = rect_getNearestCorner(diffRect, 0, 0);
+    let { x: px, y: py } = rect_getNearestCorner(diffRect, 0, 0);
 
-    let wi: number = Math.min(rect.w, Math.abs(p.x)); // area of intersection
-    let hi: number = Math.min(rect.h, Math.abs(p.y)); // area of intersection
+    let wi: number = Math.min(rect.w, Math.abs(px)); // area of intersection
+    let hi: number = Math.min(rect.h, Math.abs(py)); // area of intersection
 
     ti = -wi * hi; // `ti` is the negative area of intersection
 
@@ -184,7 +184,7 @@ export function rect_detectCollision(
       if (
         typeof ti1 === 'number' &&
         ti1 < 1 &&
-        (ti1 - (ti2 || 0)) >>> 1 >= DELTA && // special case for rect going through another rect's corner
+        Math.abs(ti1 - (ti2 || 0)) >= DELTA && // special case for rect going through another rect's corner
         (0 < ti1 + DELTA || (0 === ti1 && (ti2 || 0) > 0))
       ) {
         ti = ti1;
@@ -203,16 +203,17 @@ export function rect_detectCollision(
   if (overlaps!)
     if (dx === 0 && dy === 0) {
       //intersecting and not moving - use minimum displacement vector
-      let p = rect_getNearestCorner(diffRect, 0, 0);
+      let { x: px, y: py } = rect_getNearestCorner(diffRect, 0, 0);
 
-      if (p.x >>> 1 < p.y >>> 1) p.y = 0;
-      else p.x = 0;
+      // if (px >>> 1 < py >>> 1) py = 0;
+      if (Math.abs(px) < Math.abs(py)) py = 0;
+      else px = 0;
 
-      nx = p.x === 0 ? 0 : p.x > 0 ? 1 : -1;
-      ny = p.y === 0 ? 0 : p.y > 0 ? 1 : -1;
+      nx = Math.sign(px);
+      ny = Math.sign(py);
 
-      tx = rect.x + p.x;
-      ty = rect.y + p.y;
+      tx = rect.x + px;
+      ty = rect.y + py;
     } else {
       // Intersecting and moving - move in the opposite direction.
       const intersections = rect_getSegmentIntersectionIndices(
@@ -226,13 +227,15 @@ export function rect_detectCollision(
       );
 
       if (intersections) {
-        nx = intersections[2];
-        ny = intersections[3];
+        const [ti1, _, _nx, _ny] = intersections;
 
-        if (!intersections[0]) return;
+        nx = _nx;
+        ny = _ny;
 
-        tx = rect.x + dx * intersections[0];
-        ty = rect.y + dy * intersections[0];
+        if (!ti1) return;
+
+        tx = rect.x + dx * ti1;
+        ty = rect.y + dy * ti1;
       }
     }
   //tunnel

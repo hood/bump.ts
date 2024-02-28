@@ -70,7 +70,7 @@ export type Cell = {
   ID: string;
   x: number;
   y: number;
-  items: Set<string>;
+  items: Record<string, boolean>;
 };
 
 function sortByWeight(a: IItemInfo, b: IItemInfo): number {
@@ -331,14 +331,14 @@ export class World {
         ID: `Cell_${cx}:${cy}`,
         x: cx,
         y: cy,
-        items: new Set<string>(),
+        items: {},
       };
 
     const cell = row[cx];
 
     this.nonEmptyCells[cell.ID] = true;
 
-    if (!cell.items.has(itemID)) cell.items.add(itemID);
+    if (!cell.items[itemID]) cell.items[itemID] = true;
   }
 
   getRect(itemID: string): IRect {
@@ -353,8 +353,7 @@ export class World {
   }
 
   private getItemsInCellRect(cellRect: IRect): IItemInfo['item'][] {
-    // console.time('getItemsInCellRect');
-    const results = new Set<string>();
+    const results = [];
 
     for (let cy = cellRect.y; cy <= cellRect.y + cellRect.h - 1; cy++) {
       let row = this.rows[cy];
@@ -363,15 +362,13 @@ export class World {
         for (let cx = cellRect.x; cx <= cellRect.x + cellRect.w - 1; cx++) {
           let cell = row[cx];
 
-          if (cell?.items?.size > 0)
+          if (cell?.items && Object.keys(cell.items)?.length > 0)
             // no cell.itemCount > 1 because tunneling
-            for (const item of cell.items) results.add(item);
+            results.push(Object.keys(cell.items));
         }
     }
 
-    return [...results];
-
-    // console.timeEnd('getItemsInCellRect');
+    return results.flat();
   }
 
   // Optimized version of getDictItemsInCellRect only used in
@@ -398,13 +395,14 @@ export class World {
   private removeItemFromCell(itemID: string, cx: number, cy: number): boolean {
     let row = this.rows[cy];
 
-    if (!row?.[cx]?.['items']?.has(itemID)) return false;
+    if (!row?.[cx]?.['items']?.[itemID]) return false;
 
     let cell = row[cx];
 
-    cell.items.delete(itemID);
+    delete cell.items[itemID];
 
-    if (cell.items.size === 0) delete this.nonEmptyCells[cell.ID];
+    if (Object.keys(cell.items)?.length === 0)
+      delete this.nonEmptyCells[cell.ID];
 
     return true;
   }
