@@ -1,6 +1,23 @@
 import Bump from '../src/index';
 
 describe('World (new tests)', () => {
+  it('should properly remove an item which bleeds into more than one cell', () => {
+    const world = Bump.newWorld(8);
+
+    world.add('TEST_ITEM1', 0, 0, 16, 16);
+    world.remove('TEST_ITEM1');
+
+    expect(world.queryPoint(8, 8)).toEqual([]);
+  });
+
+  it('should properly return items found in a rect, without duplicates if they bleed into more than one cell', () => {
+    const world = Bump.newWorld(8);
+
+    world.add('TEST_ITEM1', 0, 0, 16, 16);
+
+    expect(world.queryRect(0, 0, 10, 10)).toEqual(['TEST_ITEM1']);
+  });
+
   it('should properly evaluate next position if moving through obstacles', () => {
     const world = Bump.newWorld(64);
 

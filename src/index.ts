@@ -436,7 +436,7 @@ export class World {
       )
         items.push(itemID);
 
-    return items;
+    return [...new Set(items)];
   }
 
   queryPoint(
@@ -534,7 +534,13 @@ export class World {
     return itemInfo;
   }
 
-  add(itemID: string, x: number, y: number, w: number, h: number): string {
+  public add(
+    itemID: string,
+    x: number,
+    y: number,
+    w: number,
+    h: number
+  ): string {
     const rect: IRect | undefined = this.rects.get(itemID);
 
     if (rect) throw new Error(`Item "${itemID}" added to the world twice.`);
@@ -569,7 +575,7 @@ export class World {
 
     for (let cy = cellRect.y; cy < cellRect.y + cellRect.h; cy++)
       for (let cx = cellRect.x; cx < cellRect.x + cellRect.w; cx++)
-        if (this.removeItemFromCell(itemID, cx, cy)) return;
+        this.removeItemFromCell(itemID, cx, cy);
   }
 
   update(
