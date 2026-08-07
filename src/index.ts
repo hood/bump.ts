@@ -70,7 +70,7 @@ export type Cell = {
   ID: string;
   x: number;
   y: number;
-  items: Record<string, boolean>;
+  items: Set<string>;
 };
 
 function sortByWeight(a: IItemInfo, b: IItemInfo): number {
@@ -125,7 +125,7 @@ function getInfoAboutItemsTouchedBySegment(
     const cell = cells[i];
 
     if (cell?.items)
-      for (const itemID of Object.keys(cell.items)) {
+      for (const itemID of cell.items) {
         if (!visited[itemID]) {
           visited[itemID] = true;
 
@@ -331,14 +331,14 @@ export class World {
         ID: `Cell_${cx}:${cy}`,
         x: cx,
         y: cy,
-        items: {},
+        items: new Set(),
       };
 
     const cell = row[cx];
 
     this.nonEmptyCells[cell.ID] = true;
 
-    if (!cell.items[itemID]) cell.items[itemID] = true;
+    cell.items.add(itemID);
   }
 
   getRect(itemID: string): IRect {
@@ -353,55 +353,47 @@ export class World {
   }
 
   private getItemsInCellRect(cellRect: IRect): IItemInfo['item'][] {
-    const results = [];
+    const results: string[] = [];
+    const cyEnd = cellRect.y + cellRect.h - 1;
+    const cxEnd = cellRect.x + cellRect.w - 1;
 
-    for (let cy = cellRect.y; cy <= cellRect.y + cellRect.h - 1; cy++) {
-      let row = this.rows[cy];
+    for (let cy = cellRect.y; cy <= cyEnd; cy++) {
+      const row = this.rows[cy];
 
       if (row)
-        for (let cx = cellRect.x; cx <= cellRect.x + cellRect.w - 1; cx++) {
-          let cell = row[cx];
+        for (let cx = cellRect.x; cx <= cxEnd; cx++) {
+          const cell = row[cx];
 
-          if (cell?.items && Object.keys(cell.items)?.length > 0)
-            // no cell.itemCount > 1 because tunneling
-            results.push(Object.keys(cell.items));
+          if (cell?.items?.size > 0)
+            for (const itemID of cell.items) results.push(itemID);
         }
     }
 
-    return results.flat();
+    return results;
   }
 
   // Optimized version of getDictItemsInCellRect only used in
   // queryPoint, made to avoid an unneeded object creation.
   getItemsInCellPoint(x: number, y: number): IItemInfo['item'][] {
-    const items: string[] = [];
+    const row = this.rows[y];
+    if (!row) return [];
 
-    for (let cy = y; cy <= y; cy++) {
-      let row = this.rows[cy];
+    const cell = row[x];
+    if (!cell?.items?.size) return [];
 
-      if (row)
-        for (let cx = x; cx <= x; cx++) {
-          let cell = row[cx];
-
-          if (cell?.items && Object.keys(cell.items)?.length > 0)
-            // no cell.itemCount > 1 because tunneling
-            items.push(...Object.keys(cell.items));
-        }
-    }
-
-    return items;
+    return Array.from(cell.items);
   }
 
   private removeItemFromCell(itemID: string, cx: number, cy: number): boolean {
-    let row = this.rows[cy];
+    const row = this.rows[cy];
+    if (!row) return false;
 
-    if (!row?.[cx]?.['items']?.[itemID]) return false;
+    const cell = row[cx];
+    if (!cell?.items?.has(itemID)) return false;
 
-    let cell = row[cx];
+    cell.items.delete(itemID);
 
-    delete cell.items[itemID];
-
-    if (Object.keys(cell.items)?.length === 0)
+    if (cell.items.size === 0)
       delete this.nonEmptyCells[cell.ID];
 
     return true;
@@ -622,7 +614,7 @@ export class World {
         let cyOut: boolean;
 
         for (let cy = cellRect1.y; cy <= cb1; cy++) {
-          cyOut = Number(cy) < cellRect2.y || cy > cb2;
+          cyOut = cy < cellRect2.y || cy > cb2;
 
           for (let cx = cellRect1.x; cx <= cr1; cx++)
             if (cyOut || cx < cellRect2.x || cx > cr2)
@@ -638,12 +630,7 @@ export class World {
         }
       }
 
-      this.rects.set(itemID, {
-        x: x2,
-        y: y2,
-        w: w2!,
-        h: h2!,
-      });
+      this.rects.set(itemID, { x: x2, y: y2, w: w2!, h: h2! });
     }
   }
 

@@ -246,7 +246,6 @@ export function rect_detectCollision(
 
   return {
     overlaps: overlaps!,
-    // @ts-ignore
     ti,
     move: { x: dx, y: dy },
     normal: { x: nx as number, y: ny as number },
