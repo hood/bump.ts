@@ -173,7 +173,7 @@ describe('Bump world', () => {
 
       expect(
         world['rows'].some(cols =>
-          cols.some(cell => cell.items.hasOwnProperty(itemID))
+          cols.some(cell => cell.items.has(itemID))
         )
       ).toBe(true);
 
@@ -181,7 +181,7 @@ describe('Bump world', () => {
 
       expect(
         world['rows'].some(cols =>
-          cols.some(cell => cell.items.hasOwnProperty(itemID))
+          cols.some(cell => cell.items.has(itemID))
         )
       ).toBe(false);
     });
