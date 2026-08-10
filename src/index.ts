@@ -12,7 +12,7 @@ import {
 } from './rect';
 import {
   grid_toCell,
-  grid_toCellRect,
+  grid_toCellRectInto,
   grid_toWorld,
   grid_traverse,
 } from './grid';
@@ -78,6 +78,17 @@ export type Cell = {
 function sortByWeight(a: IItemInfo, b: IItemInfo): number {
   return a.weight - b.weight;
 }
+
+/*
+ * Scratch buffers for `grid_toCellRectInto`, laid out [cx, cy, cw, ch].
+ *
+ * Two of them because `update` needs the old and the new cell rect at the same
+ * time. Every other call site reads all four values into locals before it can
+ * re-enter anything, so a user filter calling back into the world cannot
+ * observe a half-written buffer.
+ */
+const cellRectScratchA = new Float64Array(4);
+const cellRectScratchB = new Float64Array(4);
 
 /*
  * Walks the cells a segment crosses and collects the items it actually
@@ -174,7 +185,34 @@ export class World {
   cellSize: number = 0;
   rows: Cell[][];
   rects: Map<string, IRect> = new Map<string, IRect>();
-  nonEmptyCells: Record<string, boolean>;
+
+  /*
+   * Derived on read instead of maintained on write.
+   *
+   * Nothing in the library consumes this, but keeping it current cost a
+   * string-keyed write into a dictionary-mode object on every add-to-cell, plus
+   * a `delete` on every cell that emptied — both on the hottest write paths
+   * (add / remove / update / move). Rebuilding it on demand moves that cost to
+   * the callers that actually read it, of which there are none internally.
+   */
+  get nonEmptyCells(): Record<string, boolean> {
+    const cells: Record<string, boolean> = {};
+    const rows = this.rows;
+
+    for (let cy = 0; cy < rows.length; cy++) {
+      const row = rows[cy];
+
+      if (!row) continue;
+
+      for (let cx = 0; cx < row.length; cx++) {
+        const cell = row[cx];
+
+        if (cell && cell.items.size > 0) cells[cell.ID] = true;
+      }
+    }
+
+    return cells;
+  }
 
   constructor(input: {
     cellSize: number;
@@ -188,7 +226,6 @@ export class World {
     this.rects = new Map(Object.entries(input.rects));
 
     this.rows = input.rows;
-    this.nonEmptyCells = input.nonEmptyCells;
     this.responses = input.responses;
   }
 
@@ -241,27 +278,29 @@ export class World {
     const tw: number = tr - tl;
     const th: number = tb - tt;
 
-    const cellRect = grid_toCellRect(this.cellSize, {
-      x: tl,
-      y: tt,
-      w: tw,
-      h: th,
-    });
+    const cr = cellRectScratchA;
 
-    // The cell walk is inlined rather than going through getItemsInCellRect:
-    // that built an intermediate array in which every item appeared once per
-    // cell it straddles, and `visited` then threw the duplicates away.
-    const cyEnd: number = cellRect.y + cellRect.h - 1;
-    const cxEnd: number = cellRect.x + cellRect.w - 1;
+    grid_toCellRectInto(cr, this.cellSize, tl, tt, tw, th);
+
+    // Read out of the scratch buffer before the loop, which calls back into user
+    // code (`_filter`) and must not be able to observe it.
+    const cyStart: number = cr[1];
+    const cxStart: number = cr[0];
+
+    // The cell walk is inlined rather than going through a helper that built an
+    // intermediate array in which every item appeared once per cell it
+    // straddles, with `visited` then throwing the duplicates away.
+    const cyEnd: number = cyStart + cr[3] - 1;
+    const cxEnd: number = cxStart + cr[2] - 1;
     const rows = this.rows;
     const rects = this.rects;
 
-    for (let cy = cellRect.y; cy <= cyEnd; cy++) {
+    for (let cy = cyStart; cy <= cyEnd; cy++) {
       const row: Cell[] = rows[cy];
 
       if (!row) continue;
 
-      for (let cx = cellRect.x; cx <= cxEnd; cx++) {
+      for (let cx = cxStart; cx <= cxEnd; cx++) {
         const cell = row[cx];
 
         if (!cell) continue;
@@ -354,8 +393,6 @@ export class World {
       row[cx] = cell;
     }
 
-    this.nonEmptyCells[cell.ID] = true;
-
     cell.items.add(itemID);
   }
 
@@ -368,26 +405,6 @@ export class World {
       );
 
     return rect;
-  }
-
-  private getItemsInCellRect(cellRect: IRect): IItemInfo['item'][] {
-    const results: string[] = [];
-    const cyEnd = cellRect.y + cellRect.h - 1;
-    const cxEnd = cellRect.x + cellRect.w - 1;
-
-    for (let cy = cellRect.y; cy <= cyEnd; cy++) {
-      const row = this.rows[cy];
-
-      if (row)
-        for (let cx = cellRect.x; cx <= cxEnd; cx++) {
-          const cell = row[cx];
-
-          if (cell?.items?.size > 0)
-            for (const itemID of cell.items) results.push(itemID);
-        }
-    }
-
-    return results;
   }
 
   // Optimized version of getDictItemsInCellRect only used in
@@ -407,14 +424,11 @@ export class World {
     if (!row) return false;
 
     const cell = row[cx];
-    if (!cell?.items?.has(itemID)) return false;
+    if (!cell) return false;
 
-    cell.items.delete(itemID);
-
-    if (cell.items.size === 0)
-      delete this.nonEmptyCells[cell.ID];
-
-    return true;
+    // Set.delete already reports whether the item was there, so this is one
+    // hash lookup where has() + delete() were two.
+    return cell.items.delete(itemID);
   }
 
   toWorld(cx: number, cy: number): [number, number] {
@@ -434,12 +448,20 @@ export class World {
   ): string[] {
     assertIsRect(x, y, w, h);
 
-    const cellRect = grid_toCellRect(this.cellSize, { x, y, w, h });
+    const cr = cellRectScratchA;
+
+    grid_toCellRectInto(cr, this.cellSize, x, y, w, h);
 
     const items: string[] = [];
 
-    const cyEnd: number = cellRect.y + cellRect.h - 1;
-    const cxEnd: number = cellRect.x + cellRect.w - 1;
+    // Read out before the loop: `filter` is user code and may re-enter.
+    const cyStart: number = cr[1];
+    const cxStart: number = cr[0];
+    const cellW: number = cr[2];
+    const cellH: number = cr[3];
+
+    const cyEnd: number = cyStart + cellH - 1;
+    const cxEnd: number = cxStart + cellW - 1;
     const rows = this.rows;
 
     // An item straddling several cells is reachable from each of them, so it has
@@ -448,14 +470,14 @@ export class World {
     // means the filter and the intersection test run once per item, not once per
     // (item, cell) pair.
     const visited: Set<string> | null =
-      cellRect.w > 1 || cellRect.h > 1 ? new Set() : null;
+      cellW > 1 || cellH > 1 ? new Set() : null;
 
-    for (let cy = cellRect.y; cy <= cyEnd; cy++) {
+    for (let cy = cyStart; cy <= cyEnd; cy++) {
       const row: Cell[] = rows[cy];
 
       if (!row) continue;
 
-      for (let cx = cellRect.x; cx <= cxEnd; cx++) {
+      for (let cx = cxStart; cx <= cxEnd; cx++) {
         const cell = row[cx];
 
         if (!cell) continue;
@@ -600,13 +622,17 @@ export class World {
 
     this.rects.set(itemID, rectToAdd);
 
-    const cellRect = grid_toCellRect(this.cellSize, rectToAdd);
+    const cr = cellRectScratchA;
 
-    const cyEnd: number = cellRect.y + cellRect.h;
-    const cxEnd: number = cellRect.x + cellRect.w;
+    grid_toCellRectInto(cr, this.cellSize, x, y, w, h);
 
-    for (let cy = cellRect.y; cy < cyEnd; cy++)
-      for (let cx = cellRect.x; cx < cxEnd; cx++)
+    const cyStart: number = cr[1];
+    const cxStart: number = cr[0];
+    const cyEnd: number = cyStart + cr[3];
+    const cxEnd: number = cxStart + cr[2];
+
+    for (let cy = cyStart; cy < cyEnd; cy++)
+      for (let cx = cxStart; cx < cxEnd; cx++)
         this.addItemToCell(itemID, cx, cy);
 
     return itemID;
@@ -615,15 +641,20 @@ export class World {
   remove(itemID: string): void {
     // The cell rect is derived before the rect is dropped, so there is no need
     // to copy the rect first.
-    const cellRect = grid_toCellRect(this.cellSize, this.getRect(itemID));
+    const rect = this.getRect(itemID);
+    const cr = cellRectScratchA;
+
+    grid_toCellRectInto(cr, this.cellSize, rect.x, rect.y, rect.w, rect.h);
 
     this.rects.delete(itemID);
 
-    const cyEnd: number = cellRect.y + cellRect.h;
-    const cxEnd: number = cellRect.x + cellRect.w;
+    const cyStart: number = cr[1];
+    const cxStart: number = cr[0];
+    const cyEnd: number = cyStart + cr[3];
+    const cxEnd: number = cxStart + cr[2];
 
-    for (let cy = cellRect.y; cy < cyEnd; cy++)
-      for (let cx = cellRect.x; cx < cxEnd; cx++)
+    for (let cy = cyStart; cy < cyEnd; cy++)
+      for (let cx = cxStart; cx < cxEnd; cx++)
         this.removeItemFromCell(itemID, cx, cy);
   }
 
@@ -650,42 +681,46 @@ export class World {
       itemRect.w != w2 ||
       itemRect.h != h2
     ) {
-      const cellRect1 = grid_toCellRect(this.cellSize, itemRect);
+      const a = cellRectScratchA;
+      const b = cellRectScratchB;
 
-      const cellRect2 = grid_toCellRect(this.cellSize, {
-        x: x2,
-        y: y2,
-        w: w2!,
-        h: h2!,
-      });
+      grid_toCellRectInto(
+        a,
+        this.cellSize,
+        itemRect.x,
+        itemRect.y,
+        itemRect.w,
+        itemRect.h
+      );
+      grid_toCellRectInto(b, this.cellSize, x2, y2, w2!, h2!);
 
-      if (
-        cellRect1.x != cellRect2.x ||
-        cellRect1.y != cellRect2.y ||
-        cellRect1.w != cellRect2.w ||
-        cellRect1.h != cellRect2.h
-      ) {
-        const cr1: number = cellRect1.x + cellRect1.w - 1;
-        const cb1: number = cellRect1.y + cellRect1.h - 1;
+      const cx1: number = a[0];
+      const cy1: number = a[1];
+      const cx2: number = b[0];
+      const cy2: number = b[1];
 
-        const cr2: number = cellRect2.x + cellRect2.w - 1;
-        const cb2: number = cellRect2.y + cellRect2.h - 1;
+      if (cx1 != cx2 || cy1 != cy2 || a[2] != b[2] || a[3] != b[3]) {
+        const cr1: number = cx1 + a[2] - 1;
+        const cb1: number = cy1 + a[3] - 1;
+
+        const cr2: number = cx2 + b[2] - 1;
+        const cb2: number = cy2 + b[3] - 1;
 
         let cyOut: boolean;
 
-        for (let cy = cellRect1.y; cy <= cb1; cy++) {
-          cyOut = cy < cellRect2.y || cy > cb2;
+        for (let cy = cy1; cy <= cb1; cy++) {
+          cyOut = cy < cy2 || cy > cb2;
 
-          for (let cx = cellRect1.x; cx <= cr1; cx++)
-            if (cyOut || cx < cellRect2.x || cx > cr2)
+          for (let cx = cx1; cx <= cr1; cx++)
+            if (cyOut || cx < cx2 || cx > cr2)
               this.removeItemFromCell(itemID, cx, cy);
         }
 
-        for (let cy = cellRect2.y; cy <= cb2; cy++) {
-          cyOut = cy < cellRect1.y || cy > cb1;
+        for (let cy = cy2; cy <= cb2; cy++) {
+          cyOut = cy < cy1 || cy > cb1;
 
-          for (let cx = cellRect2.x; cx <= cr2; cx++)
-            if (cyOut || cx < cellRect1.x || cx > cr1)
+          for (let cx = cx2; cx <= cr2; cx++)
+            if (cyOut || cx < cx1 || cx > cr1)
               this.addItemToCell(itemID, cx, cy);
         }
       }

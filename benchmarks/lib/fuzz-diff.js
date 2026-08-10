@@ -209,7 +209,17 @@ function snapshot(world, ids) {
   }
   cells.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
 
-  return { rects, cells, items: world.countItems(), cellCount: world.countCells() };
+  // nonEmptyCells is derived on read in the optimised build; its VALUE must
+  // still match the eagerly-maintained baseline object.
+  const nec = Object.keys(world.nonEmptyCells).sort();
+
+  return {
+    rects,
+    cells,
+    nec,
+    items: world.countItems(),
+    cellCount: world.countCells(),
+  };
 }
 
 function runWorldTrial(trial, opCount) {
