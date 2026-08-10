@@ -101,42 +101,32 @@ function getInfoAboutItemsTouchedBySegment(
   const itemInfo: IItemInfo[] = [];
   const seg = segScratchSegment;
 
-  grid_traverse(self.cellSize, x1, y1, x2, y2, function(
-    cx: number,
-    cy: number
-  ) {
-    const row: Cell[] = self.rows[cy];
+  grid_traverse(
+    self.cellSize,
+    x1,
+    y1,
+    x2,
+    y2,
+    function (cx: number, cy: number) {
+      const row: Cell[] = self.rows[cy];
 
-    if (!row) return;
+      if (!row) return;
 
-    const cell = row[cx];
+      const cell = row[cx];
 
-    if (!cell || visitedCells.has(cell)) return;
+      if (!cell || visitedCells.has(cell)) return;
 
-    visitedCells.add(cell);
+      visitedCells.add(cell);
 
-    for (const itemID of cell.items) {
-      if (visitedItems.has(itemID)) continue;
+      for (const itemID of cell.items) {
+        if (visitedItems.has(itemID)) continue;
 
-      visitedItems.add(itemID);
+        visitedItems.add(itemID);
 
-      if (filter && !filter(itemID)) continue;
+        if (filter && !filter(itemID)) continue;
 
-      const rect = self.getRect(itemID);
+        const rect = self.getRect(itemID);
 
-      if (
-        !rect_getSegmentIntersectionIndicesInto(seg, rect, x1, y1, x2, y2, 0, 1)
-      )
-        continue;
-
-      const ti1 = seg[0];
-      const ti2 = seg[1];
-
-      if (
-        !isNaN(ti1) &&
-        ((0 < ti1 && ti1 < 1) || (0 < ti2 && ti2 < 1))
-      ) {
-        // -- the sorting is according to the t of an infinite line, not the segment
         if (
           !rect_getSegmentIntersectionIndicesInto(
             seg,
@@ -145,21 +135,41 @@ function getInfoAboutItemsTouchedBySegment(
             y1,
             x2,
             y2,
-            -Number.MAX_SAFE_INTEGER,
-            Number.MAX_SAFE_INTEGER
+            0,
+            1
           )
         )
           continue;
 
-        itemInfo.push({
-          item: itemID,
-          ti1,
-          ti2,
-          weight: Math.min(seg[0] || 0, seg[1] || 0),
-        });
+        const ti1 = seg[0];
+        const ti2 = seg[1];
+
+        if (!isNaN(ti1) && ((0 < ti1 && ti1 < 1) || (0 < ti2 && ti2 < 1))) {
+          // -- the sorting is according to the t of an infinite line, not the segment
+          if (
+            !rect_getSegmentIntersectionIndicesInto(
+              seg,
+              rect,
+              x1,
+              y1,
+              x2,
+              y2,
+              -Number.MAX_SAFE_INTEGER,
+              Number.MAX_SAFE_INTEGER
+            )
+          )
+            continue;
+
+          itemInfo.push({
+            item: itemID,
+            ti1,
+            ti2,
+            weight: Math.min(seg[0] || 0, seg[1] || 0),
+          });
+        }
       }
     }
-  });
+  );
 
   if (itemInfo.length > 1) itemInfo.sort(sortByWeight);
 
@@ -312,14 +322,8 @@ export class World {
 
           if (responseName === false) continue;
 
-          const collision:
-            | Partial<Collision>
-            | undefined = rect_detectCollision(
-            rect,
-            otherRect,
-            _goalX,
-            _goalY
-          );
+          const collision: Partial<Collision> | undefined =
+            rect_detectCollision(rect, otherRect, _goalX, _goalY);
 
           if (collision) {
             // Assigning onto the object detectCollision already built, instead
@@ -345,7 +349,7 @@ export class World {
     for (const row of this.rows) {
       if (!row) continue;
 
-      for (const _col of row) if (!!_col) count++;
+      for (const _col of row) if (_col) count++;
     }
 
     return count;
@@ -776,7 +780,7 @@ export class World {
 // Public library functions
 
 const bump = {
-  newWorld: function(cellSize: number): World {
+  newWorld: function (cellSize: number): World {
     cellSize = cellSize || 64;
 
     assertIsPositiveNumber(cellSize, 'cellSize');

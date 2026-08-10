@@ -308,12 +308,7 @@ export function rect_detectCollision(
   let ti: number | undefined;
 
   // If the item was intersecting other — rect_containsPoint(diffRect, 0, 0)
-  if (
-    -dfx > DELTA &&
-    -dfy > DELTA &&
-    dfx + dfw > DELTA &&
-    dfy + dfh > DELTA
-  ) {
+  if (-dfx > DELTA && -dfy > DELTA && dfx + dfw > DELTA && dfy + dfh > DELTA) {
     // rect_getNearestCorner(diffRect, 0, 0)
     const px: number = nearest(0, dfx, dfx + dfw);
     const py: number = nearest(0, dfy, dfy + dfh);

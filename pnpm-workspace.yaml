@@ -1,2 +1,4 @@
 allowBuilds:
+  # size-limit 13 bundles with esbuild; its install script links the platform binary
+  esbuild: true
   fsevents: false

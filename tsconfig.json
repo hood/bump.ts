@@ -3,6 +3,9 @@
   "include": ["src", "types"],
   "compilerOptions": {
     "module": "esnext",
+    // es2022 is safe given `engines.node: >=24`; emits native `??`, optional
+    // chaining and class fields instead of transpiling them.
+    "target": "es2022",
     "lib": ["dom", "esnext"],
     "importHelpers": true,
     // output .d.ts declaration files for consumers
@@ -29,8 +32,7 @@
     "skipLibCheck": true,
     // error out if import and file system have a casing mismatch. Recommended by TS
     "forceConsistentCasingInFileNames": true,
-    // `tsdx build` ignores this option, but it is commonly used when type-checking separately with `tsc`
-    "noEmit": true,
-    "downlevelIteration": true
+    // the build overrides this to emit; the root config is type-check only
+    "noEmit": true
   }
 }

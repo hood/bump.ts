@@ -143,20 +143,10 @@ describe('responses', () => {
   describe('slide', () => {
     it('should slide on overlaps', () => {
       expect(slide(3, 3, 2, 2, 0, 0, 8, 8, 4, 5)).toEqual([
-        0.5,
-        -2,
-        0,
-        -1,
-        4,
-        -2,
+        0.5, -2, 0, -1, 4, -2,
       ]);
       expect(slide(3, 3, 2, 2, 0, 0, 8, 8, 5, 4)).toEqual([
-        -2,
-        0.5,
-        -1,
-        0,
-        -2,
-        4,
+        -2, 0.5, -1, 0, -2, 4,
       ]);
       expect(slide(3, 3, 2, 2, 0, 0, 8, 8, 2, 1)).toEqual([5.5, 8, 0, 1, 2, 8]);
       expect(slide(3, 3, 2, 2, 0, 0, 8, 8, 1, 2)).toEqual([8, 5.5, 1, 0, 8, 2]);
@@ -174,65 +164,30 @@ describe('responses', () => {
   describe('bounce', () => {
     it('should bounce on overlaps', () => {
       expect(bounce(3, 3, 2, 2, 0, 0, 8, 8, 4, 5)).toEqual([
-        0.5,
-        -2,
-        0,
-        -1,
-        4,
-        -9,
+        0.5, -2, 0, -1, 4, -9,
       ]);
       expect(bounce(3, 3, 2, 2, 0, 0, 8, 8, 5, 4)).toEqual([
-        -2,
-        0.5,
-        -1,
-        0,
-        -9,
-        4,
+        -2, 0.5, -1, 0, -9, 4,
       ]);
       expect(bounce(3, 3, 2, 2, 0, 0, 8, 8, 2, 1)).toEqual([
-        5.5,
-        8,
-        0,
-        1,
-        2,
-        15,
+        5.5, 8, 0, 1, 2, 15,
       ]);
       expect(bounce(3, 3, 2, 2, 0, 0, 8, 8, 1, 2)).toEqual([
-        8,
-        5.5,
-        1,
-        0,
-        15,
-        2,
+        8, 5.5, 1, 0, 15, 2,
       ]);
     });
 
     it('should bounce over tunnels', () => {
       expect(bounce(10, 10, 2, 2, 0, 0, 8, 8, 1, 4)).toEqual([
-        7,
-        8,
-        0,
-        1,
-        1,
-        12,
+        7, 8, 0, 1, 1, 12,
       ]);
       expect(bounce(10, 10, 2, 2, 0, 0, 8, 8, 4, 1)).toEqual([
-        8,
-        7,
-        1,
-        0,
-        12,
-        1,
+        8, 7, 1, 0, 12, 1,
       ]);
 
       // perfect corner case:
       expect(bounce(10, 10, 2, 2, 0, 0, 8, 8, 1, 1)).toEqual([
-        8,
-        8,
-        1,
-        0,
-        15,
-        1,
+        8, 8, 1, 0, 15, 1,
       ]);
     });
   });

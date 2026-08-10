@@ -28,6 +28,11 @@ Games that require highly realistic simulations of physics - things "stacking up
 Games that require very fast objects colliding reallistically against each other (in bump, being gameistic, objects are moved and collided one at a time)
 Simulations where the order in which the collisions are resolved isn't known.
 
+#### Requirements
+
+`bump-ts` v1 requires **Node.js 24+** (the current Active LTS) and ships ES2022 output. If you need
+to support older runtimes, stay on `0.6.x`.
+
 #### Usage example:
 
 ```ts

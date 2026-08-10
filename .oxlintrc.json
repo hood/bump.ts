@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "rules": {
+    // `_goalX` / `_col` / `_filter` are a deliberate convention in src for
+    // internal/positional params carried over from the original Lua bump.
+    "no-underscore-dangle": "off"
+  },
+  "ignorePatterns": ["dist", "node_modules"],
+  "overrides": [
+    {
+      "files": ["test/**"],
+      "rules": {
+        // Tests bind `world.add(...)` results they never read; the call is the
+        // fixture setup and the returned id is genuinely not needed.
+        "no-unused-vars": "off"
+      }
+    }
+  ]
+}

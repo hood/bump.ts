@@ -4,8 +4,9 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": false,
-    "target": "es2018",
-    // es2018 output needs no downlevel helpers, so tslib stays a dev-only dep
+    // Target comes from the root tsconfig (es2022, matching the Node >=24
+    // engines floor). es2022 output needs no downlevel helpers, so tslib stays
+    // a dev-only dep.
     "importHelpers": false,
     "outDir": "./dist"
   }

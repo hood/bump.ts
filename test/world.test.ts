@@ -79,8 +79,8 @@ describe('Bump world', () => {
 
       world.update(worldItemID, 1, 1, 11, 11);
 
-      world.remove = jest.fn(world.remove);
-      world.add = jest.fn(world.add);
+      world.remove = vi.fn(world.remove);
+      world.add = vi.fn(world.add);
 
       expect(world.remove).toHaveBeenCalledTimes(0);
       expect(world.add).toHaveBeenCalledTimes(0);
@@ -172,17 +172,13 @@ describe('Bump world', () => {
       const itemID = world.add('TEST_ITEM', 0, 0, 10, 10);
 
       expect(
-        world['rows'].some(cols =>
-          cols.some(cell => cell.items.has(itemID))
-        )
+        world['rows'].some(cols => cols.some(cell => cell.items.has(itemID)))
       ).toBe(true);
 
       world.remove(itemID);
 
       expect(
-        world['rows'].some(cols =>
-          cols.some(cell => cell.items.has(itemID))
-        )
+        world['rows'].some(cols => cols.some(cell => cell.items.has(itemID)))
       ).toBe(false);
     });
   });
