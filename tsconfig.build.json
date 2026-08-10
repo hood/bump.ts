@@ -1,0 +1,12 @@
+{
+  // Emit config used by `pnpm build`. The root tsconfig is type-check only
+  // (noEmit), so the build overrides just what it needs to produce `dist`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "target": "es2018",
+    // es2018 output needs no downlevel helpers, so tslib stays a dev-only dep
+    "importHelpers": false,
+    "outDir": "./dist"
+  }
+}

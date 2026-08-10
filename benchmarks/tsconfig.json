@@ -1,0 +1,10 @@
+{
+  // ts-node config for the benchmarks: they require the TypeScript sources
+  // directly (no build step), so the emitted modules must be CommonJS.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "noEmit": false
+  },
+  "include": ["../src"]
+}

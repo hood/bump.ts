@@ -1,5 +1,5 @@
 const Benchmark = require('benchmark');
-const Bump = require('../dist/index.js');
+const Bump = require('../src/index');
 
 const suite = new Benchmark.Suite();
 

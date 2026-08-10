@@ -20,15 +20,15 @@
     "node": ">=10"
   },
   "scripts": {
-    "start": "tsdx watch",
-    "build": "tsdx build",
+    "start": "tsc -p tsconfig.build.json --module commonjs --outDir dist --watch",
+    "build": "tsc -p tsconfig.build.json --module commonjs --outDir dist && tsc -p tsconfig.build.json --module esnext --declaration false --outDir dist/esm",
     "test": "tsdx test",
     "lint": "tsdx lint",
-    "prepare": "tsdx build",
+    "prepare": "pnpm build",
     "size": "size-limit",
     "analyze": "size-limit --why",
-    "benchmark": "node benchmarks/update.bench.js",
-    "benchmark:track": "node benchmarks/update.bench.js > benchmarks/benchmarks.md"
+    "benchmark": "ts-node -T --project benchmarks/tsconfig.json benchmarks/update.bench.js",
+    "benchmark:track": "pnpm benchmark > benchmarks/benchmarks.md"
   },
   "husky": {
     "hooks": {
@@ -47,14 +47,14 @@
     "type": "git",
     "url": "https://github.com/hood/bump.ts.git"
   },
-  "module": "dist/bump-ts.esm.js",
+  "module": "dist/esm/index.js",
   "size-limit": [
     {
-      "path": "dist/bump-ts.cjs.production.min.js",
+      "path": "dist/index.js",
       "limit": "10 KB"
     },
     {
-      "path": "dist/bump-ts.esm.js",
+      "path": "dist/esm/index.js",
       "limit": "10 KB"
     }
   ],
