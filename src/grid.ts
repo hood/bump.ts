@@ -114,35 +114,6 @@ export function grid_traverse(
   if (cx != cx2 || cy != cy2) traverseFunction(cx2, cy2);
 }
 
-/*
- * Non-allocating form of `grid_toCellRect`, writing [cx, cy, cw, ch] into `out`.
- *
- * The tuple-free variant exists for the same reason as `initStep`: the object
- * `grid_toCellRect` returns is garbage the moment its four fields have been
- * read, and the write paths (add, remove, update) plus project/queryRect call it
- * once or twice per operation. Callers needing two cell rects at once own two
- * buffers.
- *
- * Float64Array rather than Int32Array so a NaN coordinate still propagates as
- * NaN — `assertIsRect` only type-checks x/y, so NaN can reach here.
- */
-export function grid_toCellRectInto(
-  out: Float64Array,
-  cellSize: number,
-  x: number,
-  y: number,
-  w: number,
-  h: number
-): void {
-  const cx: number = Math.floor(x / cellSize) + 1;
-  const cy: number = Math.floor(y / cellSize) + 1;
-
-  out[0] = cx;
-  out[1] = cy;
-  out[2] = Math.ceil((x + w) / cellSize) - cx + 1;
-  out[3] = Math.ceil((y + h) / cellSize) - cy + 1;
-}
-
 export function grid_toCellRect(cellSize: number, rect: IRect): IRect {
   const cx: number = Math.floor(rect.x / cellSize) + 1;
   const cy: number = Math.floor(rect.y / cellSize) + 1;

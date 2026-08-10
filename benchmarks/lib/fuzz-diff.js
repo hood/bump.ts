@@ -15,11 +15,11 @@ require('ts-node').register({
 });
 
 const base = require('../../.bench-baseline/src/index').default;
-const curr = require('../../src/index').default;
+const curr = require('../../.bench-curr/src/index').default;
 const baseRect = require('../../.bench-baseline/src/rect');
-const currRect = require('../../src/rect');
+const currRect = require('../../.bench-curr/src/rect');
 const baseGrid = require('../../.bench-baseline/src/grid');
-const currGrid = require('../../src/grid');
+const currGrid = require('../../.bench-curr/src/grid');
 
 const ITERATIONS = Number(process.argv[2] || 20000);
 

@@ -20,12 +20,31 @@ const { SCENARIOS } = require('./scenarios');
 const [implTag, scenarioIdxRaw, opName] = process.argv.slice(2);
 const scenarioIdx = Number(scenarioIdxRaw);
 
-// CURR_SRC lets the driver point "curr" at a copy of the baseline, which is how
-// the harness's own noise floor gets measured.
-const CURR_SRC = process.env.CURR_SRC || '../../src/index';
+/*
+ * Three implementations:
+ *   base — pristine snapshot
+ *   ctrl — a second copy of that same snapshot
+ *   curr — the working tree
+ *
+ * `ctrl` is the control. Measuring it in the same trial loop as `curr` gives a
+ * noise floor observed under the same machine conditions, which a separate
+ * calibration pass does not: identical baseline code measured 10.4M ops/s in one
+ * pass and 23.6M in the next.
+ */
+const SRC_BY_TAG = {
+  base: '../../.bench-baseline/src/index',
+  ctrl: '../../.bench-baseline2/src/index',
+  curr: '../../.bench-curr/src/index',
+};
 
-const bump = require(implTag === 'base' ? '../../.bench-baseline/src/index' : CURR_SRC)
-  .default;
+const src = SRC_BY_TAG[implTag];
+
+if (!src) {
+  console.error(`unknown impl "${implTag}"`);
+  process.exit(2);
+}
+
+const bump = require(src).default;
 
 const spec = SCENARIOS[scenarioIdx].build();
 const fn = spec.ops[opName];
