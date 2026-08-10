@@ -35,6 +35,33 @@ export function grid_traverse_initStep(
   else return [0, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER];
 }
 
+/*
+ * Scalar form of `grid_traverse_initStep`. The tuple-returning version is
+ * public API, but `grid_traverse` calls it twice per traversal and cannot afford
+ * the arrays, so the three results are staged here instead.
+ */
+let initStepStep = 0;
+let initStepDelta = 0;
+let initStepT = 0;
+
+function initStep(cellSize: number, ct: number, t1: number, t2: number): void {
+  const v: number = t2 - t1;
+
+  if (v > 0) {
+    initStepStep = 1;
+    initStepDelta = cellSize / v;
+    initStepT = ((ct + v) * cellSize - t1) / v;
+  } else if (v < 0) {
+    initStepStep = -1;
+    initStepDelta = -cellSize / v;
+    initStepT = ((ct + v - 1) * cellSize - t1) / v;
+  } else {
+    initStepStep = 0;
+    initStepDelta = Number.MAX_SAFE_INTEGER;
+    initStepT = Number.MAX_SAFE_INTEGER;
+  }
+}
+
 export function grid_traverse(
   cellSize: number,
   x1: number,
@@ -43,11 +70,23 @@ export function grid_traverse(
   y2: number,
   traverseFunction: (cx: number, cy: number) => void
 ): void {
-  const [cx1, cy1] = grid_toCell(cellSize, x1, y1);
-  const [cx2, cy2] = grid_toCell(cellSize, x2, y2);
-  let [stepX, dx, tx] = grid_traverse_initStep(cellSize, cx1, x1, x2);
-  let [stepY, dy, ty] = grid_traverse_initStep(cellSize, cy1, y1, y2);
-  let [cx, cy] = [cx1, cy1];
+  const cx1: number = Math.floor(x1 / cellSize) + 1;
+  const cy1: number = Math.floor(y1 / cellSize) + 1;
+  const cx2: number = Math.floor(x2 / cellSize) + 1;
+  const cy2: number = Math.floor(y2 / cellSize) + 1;
+
+  initStep(cellSize, cx1, x1, x2);
+  const stepX: number = initStepStep;
+  const dx: number = initStepDelta;
+  let tx: number = initStepT;
+
+  initStep(cellSize, cy1, y1, y2);
+  const stepY: number = initStepStep;
+  const dy: number = initStepDelta;
+  let ty: number = initStepT;
+
+  let cx: number = cx1;
+  let cy: number = cy1;
 
   traverseFunction(cx, cy);
 
@@ -56,7 +95,8 @@ export function grid_traverse(
   // when we are *next* to the last cell.
   do {
     if (tx < ty) {
-      [tx, cx] = [tx + dx, cx + stepX];
+      tx = tx + dx;
+      cx = cx + stepX;
 
       traverseFunction(cx, cy);
     } else {
@@ -75,7 +115,8 @@ export function grid_traverse(
 }
 
 export function grid_toCellRect(cellSize: number, rect: IRect): IRect {
-  let [cx, cy] = grid_toCell(cellSize, rect.x, rect.y);
+  const cx: number = Math.floor(rect.x / cellSize) + 1;
+  const cy: number = Math.floor(rect.y / cellSize) + 1;
 
   const cr: number = Math.ceil((rect.x + rect.w) / cellSize);
   const cb: number = Math.ceil((rect.y + rect.h) / cellSize);
