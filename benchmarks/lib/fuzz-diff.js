@@ -204,7 +204,7 @@ function snapshot(world, ids) {
     for (let cx = 0; cx < row.length; cx++) {
       const cell = row[cx];
       if (!cell) continue;
-      cells.push([cell.ID, cell.x, cell.y, Array.from(cell.items).sort()]);
+      cells.push([cell.ID, cell.x, cell.y, Array.from(cell.items, it => (typeof it === 'number' ? world.names[it] : it)).sort()]);
     }
   }
   cells.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
