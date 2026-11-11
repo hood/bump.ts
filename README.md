@@ -69,28 +69,25 @@ world.remove(B)
 
 #### Benchmarks
 
-v1 vs the pre-optimisation baseline (`d436f67`), measured with the A/B harness in `benchmarks/`.
-Median of 5 trials, one process per measurement, rotating arm order. Apple M1 Pro, Node 26.13.
+Apple M1 Pro, Node 26.13. Median of 5 trials, each in its own process.
 
-| Scenario | Op | Baseline | v1 | Δ |
-|---|---|---:|---:|---:|
-| game loop (400 blocks, 200 entities) | `move` (full frame) | 2.0k/s | 2.5k/s | **+25.7%** |
-| | `check` (full frame) | 10.4k/s | 11.2k/s | +7.8% |
-| queries (4000 items) | `queryRect` | 313.5k/s | 262.9k/s | -15.7% |
-| | `queryRect` (wide) | 27.1k/s | 29.3k/s | +9.3% |
-| | `queryPoint` | 5.78M/s | 5.95M/s | +5.0% |
-| | `querySegment` | 91.1k/s | 111.4k/s | **+24.7%** |
-| churn (2000 items) | `add` + `remove` | 2.64M/s | 3.11M/s | +18.6% |
-| | `update` (across cells) | 2.63M/s | 3.22M/s | **+23.1%** |
-| | `update` (in place) | 13.07M/s | 13.74M/s | +5.1% |
-| rect micro | `detectCollision` (overlap) | 31.70M/s | 26.62M/s | -14.6% |
-| | `detectCollision` (tunnel) | 25.08M/s | 24.29M/s | within noise |
-| | `detectCollision` (miss) | 37.83M/s | 39.06M/s | within noise |
-| | `getSegmentIntersectionIndices` | 53.99M/s | 40.59M/s | -24.7% |
+| Scenario | Op | ops/sec | time/op |
+|---|---|---:|---:|
+| game loop: 400 blocks, 200 entities | `move`, all entities (1 frame) | 2.5k | 403 µs |
+| | `check`, all entities (1 frame) | 11.2k | 89 µs |
+| queries: 4000 items, 24x24 | `queryRect` 128x128 | 252k | 4.0 µs |
+| | `queryRect` 640x640 | 29k | 34 µs |
+| | `queryPoint` | 6.15M | 163 ns |
+| | `querySegment` 640px long | 114k | 8.8 µs |
+| churn: 2000 items | `add` + `remove` | 3.21M | 312 ns |
+| | `update`, moving across cells | 3.33M | 300 ns |
+| | `update`, same cells | 13.97M | 72 ns |
+| rect math | `detectCollision`, overlapping | 27.3M | 37 ns |
+| | `detectCollision`, tunneling | 25.0M | 40 ns |
+| | `detectCollision`, miss | 39.5M | 25 ns |
+| | `getSegmentIntersectionIndices` | 41.6M | 24 ns |
 
-Noise floor per row is ±2-5% (a byte-identical copy of the baseline is measured alongside as a control).
-
-To reproduce:
+Workloads are in `benchmarks/lib/scenarios.js`. To run them yourself:
 
 ```sh
 node benchmarks/lib/prepare-baseline.js
