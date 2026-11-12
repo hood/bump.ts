@@ -172,13 +172,13 @@ describe('Bump world', () => {
       const itemID = world.add('TEST_ITEM', 0, 0, 10, 10);
 
       expect(
-        world['rows'].some(cols => cols.some(cell => cell.items.has(itemID)))
+        world['rows'].some(cols => cols.some(cell => cell.items.some(h => world.names[h] === itemID)))
       ).toBe(true);
 
       world.remove(itemID);
 
       expect(
-        world['rows'].some(cols => cols.some(cell => cell.items.has(itemID)))
+        world['rows'].some(cols => cols.some(cell => cell.items.some(h => world.names[h] === itemID)))
       ).toBe(false);
     });
   });

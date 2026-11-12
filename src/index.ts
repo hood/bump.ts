@@ -1,22 +1,19 @@
 import assertIsPositiveNumber from './helpers/generic/assertIsPositiveNumber';
 import {
+  detectCollision,
   rect_containsPoint,
   rect_detectCollision,
   rect_getDiff,
   rect_getNearestCorner,
   rect_getSegmentIntersectionIndices,
-  rect_getSegmentIntersectionIndicesInto,
   rect_getSquareDistance,
   rect_isIntersecting,
+  segmentIntersection,
   segScratchSegment,
 } from './rect';
-import {
-  grid_toCell,
-  grid_toCellRect,
-  grid_toWorld,
-  grid_traverse,
-} from './grid';
+import { grid_toCell, grid_toWorld, grid_traverse } from './grid';
 import assertIsRect from './helpers/generic/assertIsRect';
+import { DELTA } from './constants';
 import {
   bounce,
   cross,
@@ -33,6 +30,19 @@ function defaultFilter(): 'slide' {
 type ResponseType = 'bounce' | 'slide' | 'cross' | 'touch';
 
 type Filter = (item: string, other: string) => ResponseType;
+
+/*
+ * A query filter is either a predicate on the other item's ID, or a layer mask:
+ * a number keeps the items whose category shares at least one bit with it.
+ */
+type QueryFilter = ((other?: string) => boolean) | number;
+
+export interface ILayers {
+  /* Bits this item belongs to. Defaults to 1. */
+  category?: number;
+  /* Bits this item collides with. Defaults to all of them. */
+  mask?: number;
+}
 
 interface IItemInfo {
   item: string;
@@ -68,112 +78,49 @@ export interface Collision {
   bounce?: ICoords;
 }
 
+/*
+ * `items` holds integer item handles, not IDs: see `World.names` to map one
+ * back. It is kept in insertion order so every query returns items in the same
+ * order the previous `Set<string>` did.
+ */
 export type Cell = {
   ID: string;
   x: number;
   y: number;
-  items: Set<string>;
+  items: number[];
 };
+
+const DEFAULT_CATEGORY = 1;
+const DEFAULT_MASK = 0xffffffff;
+const INITIAL_CAPACITY = 64;
+
+/*
+ * `check` hands its responses a filter that hides already-resolved items. It
+ * has to stay a plain `(item, other)` callback for custom responses, but when it
+ * comes back into `project` the state attached here lets the cell walk skip
+ * those items by handle and skip the call entirely for the default filter.
+ */
+const CHECK_STATE = '__bumpCheck';
+
+interface ICheckState {
+  excluded: number[];
+  filter: Filter;
+}
 
 function sortByWeight(a: IItemInfo, b: IItemInfo): number {
   return a.weight - b.weight;
 }
 
-/*
- * Walks the cells a segment crosses and collects the items it actually
- * intersects, in one pass.
- *
- * The cell walk used to materialise a `Cell[]` before looking at any item; the
- * traversal callback now tests items directly, so a query allocates one closure
- * instead of a closure plus an array plus two lookup objects. Cells are deduped
- * by object identity rather than by their `ID` string to avoid hashing.
- */
-function getInfoAboutItemsTouchedBySegment(
-  self: World,
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  filter?: (other?: string) => boolean
-): { item: string; ti1: number; ti2: number; weight: number | null }[] {
-  const visitedCells: Set<Cell> = new Set();
-  const visitedItems: Set<string> = new Set();
-  const itemInfo: IItemInfo[] = [];
-  const seg = segScratchSegment;
+function removeFromCell(items: number[], handle: number): void {
+  const n = items.length;
+  let i = items.indexOf(handle);
 
-  grid_traverse(
-    self.cellSize,
-    x1,
-    y1,
-    x2,
-    y2,
-    function (cx: number, cy: number) {
-      const row: Cell[] = self.rows[cy];
+  if (i < 0) return;
 
-      if (!row) return;
+  // Shift rather than swap-remove: query results follow cell order.
+  for (i++; i < n; i++) items[i - 1] = items[i];
 
-      const cell = row[cx];
-
-      if (!cell || visitedCells.has(cell)) return;
-
-      visitedCells.add(cell);
-
-      for (const itemID of cell.items) {
-        if (visitedItems.has(itemID)) continue;
-
-        visitedItems.add(itemID);
-
-        if (filter && !filter(itemID)) continue;
-
-        const rect = self.getRect(itemID);
-
-        if (
-          !rect_getSegmentIntersectionIndicesInto(
-            seg,
-            rect,
-            x1,
-            y1,
-            x2,
-            y2,
-            0,
-            1
-          )
-        )
-          continue;
-
-        const ti1 = seg[0];
-        const ti2 = seg[1];
-
-        if (!isNaN(ti1) && ((0 < ti1 && ti1 < 1) || (0 < ti2 && ti2 < 1))) {
-          // -- the sorting is according to the t of an infinite line, not the segment
-          if (
-            !rect_getSegmentIntersectionIndicesInto(
-              seg,
-              rect,
-              x1,
-              y1,
-              x2,
-              y2,
-              -Number.MAX_SAFE_INTEGER,
-              Number.MAX_SAFE_INTEGER
-            )
-          )
-            continue;
-
-          itemInfo.push({
-            item: itemID,
-            ti1,
-            ti2,
-            weight: Math.min(seg[0] || 0, seg[1] || 0),
-          });
-        }
-      }
-    }
-  );
-
-  if (itemInfo.length > 1) itemInfo.sort(sortByWeight);
-
-  return itemInfo;
+  items.pop();
 }
 
 export class World {
@@ -182,23 +129,41 @@ export class World {
     Response
   >;
   cellSize: number = 0;
-  rows: Cell[][];
-  rects: Map<string, IRect> = new Map<string, IRect>();
+  rows: Cell[][] = [];
+
+  /*
+   * Item storage is data-oriented: each item gets an integer handle, and its
+   * rect lives at `boxes[handle * 4 .. + 3]`. The cell walk then touches only
+   * small integers and a flat float array, with no string hashing per
+   * candidate. The ID -> handle Map is consulted once per public call, and its
+   * insertion order is the item order `getItems` reports.
+   */
+  private handles: Map<string, number> = new Map();
+  /* handle -> item ID; `undefined` for a free handle. */
+  names: (string | undefined)[] = [];
+  private boxes: Float64Array = new Float64Array(INITIAL_CAPACITY * 4);
+  private categories: Uint32Array = new Uint32Array(INITIAL_CAPACITY);
+  private masks: Uint32Array = new Uint32Array(INITIAL_CAPACITY);
+  private capacity: number = INITIAL_CAPACITY;
+  private nextHandle: number = 0;
+  private freeHandles: number[] = [];
+
+  /*
+   * Dedup marks: an item is visited when `marks[handle] === epoch`. Bumping
+   * the epoch clears every mark at once. A filter may call back into the world
+   * mid-query, so each nesting depth gets its own mark array.
+   */
+  private visitMarks: Uint32Array[] = [];
+  private visitEpochs: number[] = [];
+  private visitDepth: number = 0;
 
   /*
    * Derived on read, not maintained on write.
    *
-   * Nothing in the library consumes this, so the string-keyed write on every
-   * add-to-cell plus the `delete` on every emptied cell were pure overhead on the
-   * hottest write paths — and neither is an allocation V8 can optimise away,
-   * since arbitrary item IDs keep the object in dictionary mode.
-   *
    * The enumeration must go through `Object.keys`, NOT a numeric `0..length`
    * walk. `rows` is indexed by cell coordinate, which goes negative for negative
    * world coordinates, and negative indices are string-keyed properties outside
-   * the array's index range: a numeric walk silently drops them, reporting 81
-   * non-empty cells for a world spanning the origin that has 256. `for..of` and
-   * `Array.prototype` iteration have the same blind spot.
+   * the array's index range: a numeric walk silently drops them.
    */
   get nonEmptyCells(): Record<string, boolean> {
     const cells: Record<string, boolean> = {};
@@ -212,26 +177,35 @@ export class World {
       for (const cx of Object.keys(row)) {
         const cell = row[cx];
 
-        if (cell && cell.items.size > 0) cells[cell.ID] = true;
+        if (cell && cell.items.length > 0) cells[cell.ID] = true;
       }
     }
 
     return cells;
   }
 
+  /* A snapshot of every item's rect, keyed by ID. */
+  get rects(): Map<string, IRect> {
+    const rects = new Map<string, IRect>();
+
+    for (const [itemID, handle] of this.handles)
+      rects.set(itemID, this.rectOf(handle));
+
+    return rects;
+  }
+
   constructor(input: {
     cellSize: number;
-    rects: {};
+    rects: Record<string, IRect>;
     rows: [];
     nonEmptyCells: {};
     responses: Record<ResponseType, Response>;
   }) {
     this.cellSize = input.cellSize;
-
-    this.rects = new Map(Object.entries(input.rects));
-
-    this.rows = input.rows;
     this.responses = input.responses;
+
+    for (const [itemID, r] of Object.entries(input.rects))
+      this.add(itemID, r.x, r.y, r.w, r.h);
   }
 
   addResponse(name: ResponseType, response: Response): void {
@@ -247,6 +221,91 @@ export class World {
     return response;
   }
 
+  private handleOf(itemID: string): number {
+    const handle = this.handles.get(itemID);
+
+    if (handle === undefined)
+      throw new Error(
+        `Item "${itemID}" must be added to the world before getting its rect. Use world:add(item, x,y,w,h) to add it first.`
+      );
+
+    return handle;
+  }
+
+  private rectOf(handle: number): IRect {
+    const b = this.boxes;
+    const i = handle << 2;
+
+    return { x: b[i], y: b[i + 1], w: b[i + 2], h: b[i + 3] };
+  }
+
+  private grow(): void {
+    const capacity = this.capacity * 2;
+
+    const boxes = new Float64Array(capacity * 4);
+    boxes.set(this.boxes);
+    this.boxes = boxes;
+
+    const categories = new Uint32Array(capacity);
+    categories.set(this.categories);
+    this.categories = categories;
+
+    const masks = new Uint32Array(capacity);
+    masks.set(this.masks);
+    this.masks = masks;
+
+    this.capacity = capacity;
+  }
+
+  private beginVisit(): Uint32Array {
+    const depth = this.visitDepth++;
+    let marks = this.visitMarks[depth];
+
+    if (marks === undefined || marks.length < this.capacity) {
+      marks = new Uint32Array(this.capacity);
+      this.visitMarks[depth] = marks;
+      this.visitEpochs[depth] = 0;
+    }
+
+    let epoch = this.visitEpochs[depth] + 1;
+
+    if (epoch > 0xfffffffe) {
+      marks.fill(0);
+      epoch = 1;
+    }
+
+    this.visitEpochs[depth] = epoch;
+
+    return marks;
+  }
+
+  private endVisit(): void {
+    this.visitDepth--;
+  }
+
+  private currentEpoch(): number {
+    return this.visitEpochs[this.visitDepth - 1];
+  }
+
+  /*
+   * Sets which layers an item belongs to and which it collides with. Two items
+   * only collide when each one's mask shares a bit with the other's category;
+   * pairs that fail this are skipped before the filter is called.
+   */
+  setLayers(itemID: string, layers: ILayers): void {
+    const handle = this.handleOf(itemID);
+
+    if (layers.category !== undefined)
+      this.categories[handle] = layers.category;
+    if (layers.mask !== undefined) this.masks[handle] = layers.mask;
+  }
+
+  getLayers(itemID: string): Required<ILayers> {
+    const handle = this.handleOf(itemID);
+
+    return { category: this.categories[handle], mask: this.masks[handle] };
+  }
+
   project(
     itemID: string | null,
     rect: IRect,
@@ -257,17 +316,29 @@ export class World {
     const _goalX = goalX ?? rect.x;
     const _goalY = goalY ?? rect.y;
 
-    const _filter = filter || defaultFilter;
+    let userFilter: ((item: string, other: string) => ResponseType | false) | undefined = filter;
+    let excluded: number[] | null = null;
+
+    const checkState: ICheckState | undefined =
+      filter && (filter as any)[CHECK_STATE];
+
+    if (checkState !== undefined) {
+      excluded = checkState.excluded;
+      userFilter = checkState.filter;
+    }
+
+    const callFilter = userFilter !== undefined && userFilter !== defaultFilter;
 
     const collisions: Collision[] = [];
 
-    let visited: Set<string> = new Set();
+    const own: number =
+      itemID === null || itemID === undefined
+        ? -1
+        : (this.handles.get(itemID) ?? -1);
+    const ownCategory = own < 0 ? DEFAULT_CATEGORY : this.categories[own];
+    const ownMask = own < 0 ? DEFAULT_MASK : this.masks[own];
 
-    if (itemID) visited.add(itemID);
-
-    // This could probably be done with less cells using a polygon raster over
-    // the cells instead of a bounding rect of the whole movement. Conditional
-    // to building a queryPolygon method.
+    // Bounding rect of the whole movement, in cells.
     const tl: number = _goalX !== rect.x ? Math.min(_goalX, rect.x) : _goalX;
     const tt: number = _goalY !== rect.y ? Math.min(_goalY, rect.y) : _goalY;
 
@@ -280,62 +351,84 @@ export class World {
         ? Math.max(_goalY + rect.h, rect.y + rect.h)
         : _goalY + rect.h;
 
-    const tw: number = tr - tl;
-    const th: number = tb - tt;
+    const cellSize = this.cellSize;
+    const cx1: number = Math.floor(tl / cellSize) + 1;
+    const cy1: number = Math.floor(tt / cellSize) + 1;
+    // `tl + (tr - tl)`, not `tr`: it can round differently, and the cell range
+    // has to match the one grid_toCellRect produced before.
+    const cxEnd: number = Math.ceil((tl + (tr - tl)) / cellSize);
+    const cyEnd: number = Math.ceil((tt + (tb - tt)) / cellSize);
 
-    const cellRect = grid_toCellRect(this.cellSize, {
-      x: tl,
-      y: tt,
-      w: tw,
-      h: th,
-    });
-
-    // The cell walk is inlined rather than going through a helper that built an
-    // intermediate array in which every item appeared once per cell it
-    // straddles, with `visited` then throwing the duplicates away.
-    const cyEnd: number = cellRect.y + cellRect.h - 1;
-    const cxEnd: number = cellRect.x + cellRect.w - 1;
     const rows = this.rows;
-    const rects = this.rects;
+    const boxes = this.boxes;
+    const categories = this.categories;
+    const masks = this.masks;
+    const names = this.names;
 
-    for (let cy = cellRect.y; cy <= cyEnd; cy++) {
-      const row: Cell[] = rows[cy];
+    const marks = this.beginVisit();
+    const epoch = this.currentEpoch();
 
-      if (!row) continue;
+    if (own >= 0) marks[own] = epoch;
 
-      for (let cx = cellRect.x; cx <= cxEnd; cx++) {
-        const cell = row[cx];
+    try {
+      for (let cy = cy1; cy <= cyEnd; cy++) {
+        const row: Cell[] = rows[cy];
 
-        if (!cell) continue;
+        if (!row) continue;
 
-        for (const other of cell.items) {
-          if (visited.has(other)) continue;
+        for (let cx = cx1; cx <= cxEnd; cx++) {
+          const cell = row[cx];
 
-          visited.add(other);
+          if (!cell) continue;
 
-          // One Map lookup where hasItem() + getRect() used to do two.
-          const otherRect = rects.get(other);
+          const items = cell.items;
 
-          if (otherRect === undefined) continue;
+          for (let k = 0; k < items.length; k++) {
+            const other = items[k];
 
-          const responseName: ResponseType | false = _filter(itemID!, other);
+            if (marks[other] === epoch) continue;
 
-          if (responseName === false) continue;
+            marks[other] = epoch;
 
-          const collision: Partial<Collision> | undefined =
-            rect_detectCollision(rect, otherRect, _goalX, _goalY);
+            if (excluded !== null && excluded.includes(other)) continue;
 
-          if (collision) {
-            // Assigning onto the object detectCollision already built, instead
-            // of spreading it into a new one.
-            collision.other = other;
-            collision.item = itemID;
-            collision.type = responseName;
+            if (
+              (ownMask & categories[other]) === 0 ||
+              (masks[other] & ownCategory) === 0
+            )
+              continue;
 
-            collisions.push(collision as Collision);
+            const responseName: ResponseType | false = callFilter
+              ? userFilter!(itemID!, names[other]!)
+              : 'slide';
+
+            if (responseName === false) continue;
+
+            const b = other << 2;
+
+            const collision: Partial<Collision> | undefined = detectCollision(
+              rect,
+              boxes[b],
+              boxes[b + 1],
+              boxes[b + 2],
+              boxes[b + 3],
+              null,
+              _goalX,
+              _goalY
+            );
+
+            if (collision) {
+              collision.other = names[other];
+              collision.item = itemID;
+              collision.type = responseName;
+
+              collisions.push(collision as Collision);
+            }
           }
         }
       }
+    } finally {
+      this.endVisit();
     }
 
     if (collisions.length > 1) collisions.sort(sortByTiAndDistance);
@@ -356,52 +449,73 @@ export class World {
   }
 
   hasItem(item: string): boolean {
-    return this.rects.has(item);
+    return this.handles.has(item);
   }
 
   getItems(): IRect[] {
-    return Array.from(this.rects.values());
+    const items: IRect[] = [];
+
+    for (const handle of this.handles.values())
+      items.push(this.rectOf(handle));
+
+    return items;
   }
 
   countItems(): number {
-    return this.rects.size;
+    return this.handles.size;
   }
 
-  private addItemToCell(itemID: string, cx: number, cy: number): void {
-    let row = this.rows[cy];
+  private addToCells(
+    handle: number,
+    cx1: number,
+    cy1: number,
+    cx2: number,
+    cy2: number
+  ): void {
+    for (let cy = cy1; cy <= cy2; cy++) {
+      let row = this.rows[cy];
 
-    // Read once and only store back when the row is actually missing; the
-    // previous `rows[cy] = rows[cy] || []` wrote on every call.
-    if (!row) {
-      row = [];
-      this.rows[cy] = row;
+      if (!row) {
+        row = [];
+        this.rows[cy] = row;
+      }
+
+      for (let cx = cx1; cx <= cx2; cx++) {
+        let cell = row[cx];
+
+        if (!cell) {
+          cell = { ID: `Cell_${cx}:${cy}`, x: cx, y: cy, items: [] };
+          row[cx] = cell;
+        }
+
+        cell.items.push(handle);
+      }
     }
-
-    let cell = row[cx];
-
-    // Initialize a cell if no cell is present at this point.
-    if (!cell) {
-      cell = {
-        ID: `Cell_${cx}:${cy}`,
-        x: cx,
-        y: cy,
-        items: new Set(),
-      };
-      row[cx] = cell;
-    }
-
-    cell.items.add(itemID);
   }
 
+  private removeFromCells(
+    handle: number,
+    cx1: number,
+    cy1: number,
+    cx2: number,
+    cy2: number
+  ): void {
+    for (let cy = cy1; cy <= cy2; cy++) {
+      const row = this.rows[cy];
+
+      if (!row) continue;
+
+      for (let cx = cx1; cx <= cx2; cx++) {
+        const cell = row[cx];
+
+        if (cell) removeFromCell(cell.items, handle);
+      }
+    }
+  }
+
+  /* Returns a copy: mutating it does not move the item. */
   getRect(itemID: string): IRect {
-    const rect = this.rects.get(itemID);
-
-    if (!rect)
-      throw new Error(
-        `Item "${itemID}" must be added to the world before getting its rect. Use world:add(item, x,y,w,h) to add it first.`
-      );
-
-    return rect;
+    return this.rectOf(this.handleOf(itemID));
   }
 
   // Optimized version of getDictItemsInCellRect only used in
@@ -411,21 +525,11 @@ export class World {
     if (!row) return [];
 
     const cell = row[x];
-    if (!cell?.items?.size) return [];
+    if (!cell?.items?.length) return [];
 
-    return Array.from(cell.items);
-  }
+    const names = this.names;
 
-  private removeItemFromCell(itemID: string, cx: number, cy: number): boolean {
-    const row = this.rows[cy];
-    if (!row) return false;
-
-    const cell = row[cx];
-    if (!cell) return false;
-
-    // Set.delete already reports whether the item was there, so this is one
-    // hash lookup where has() + delete() were two.
-    return cell.items.delete(itemID);
+    return cell.items.map(handle => names[handle]!);
   }
 
   toWorld(cx: number, cy: number): [number, number] {
@@ -441,62 +545,81 @@ export class World {
     y: number,
     w: number,
     h: number,
-    filter?: (other?: string) => boolean
+    filter?: QueryFilter
   ): string[] {
     assertIsRect(x, y, w, h);
 
-    const cellRect = grid_toCellRect(this.cellSize, { x, y, w, h });
+    const cellSize = this.cellSize;
+    const cx1: number = Math.floor(x / cellSize) + 1;
+    const cy1: number = Math.floor(y / cellSize) + 1;
+    const cxEnd: number = Math.ceil((x + w) / cellSize);
+    const cyEnd: number = Math.ceil((y + h) / cellSize);
+
+    const fn = typeof filter === 'function' ? filter : null;
+    const layerMask = typeof filter === 'number' ? filter : DEFAULT_MASK;
 
     const items: string[] = [];
-
-    const cyEnd: number = cellRect.y + cellRect.h - 1;
-    const cxEnd: number = cellRect.x + cellRect.w - 1;
     const rows = this.rows;
+    const boxes = this.boxes;
+    const categories = this.categories;
+    const names = this.names;
 
-    // An item straddling several cells is reachable from each of them, so it has
-    // to be deduped — but only when the query actually spans more than one cell.
-    // Deduping up front (rather than via `[...new Set(items)]` at the end) also
-    // means the filter and the intersection test run once per item, not once per
-    // (item, cell) pair.
-    const visited: Set<string> | null =
-      cellRect.w > 1 || cellRect.h > 1 ? new Set() : null;
+    // An item straddling several cells is reachable from each of them, so it
+    // has to be deduped, but only when the query spans more than one cell.
+    const dedupe = cxEnd > cx1 || cyEnd > cy1;
+    const marks = this.beginVisit();
+    const epoch = this.currentEpoch();
 
-    for (let cy = cellRect.y; cy <= cyEnd; cy++) {
-      const row: Cell[] = rows[cy];
+    try {
+      for (let cy = cy1; cy <= cyEnd; cy++) {
+        const row: Cell[] = rows[cy];
 
-      if (!row) continue;
+        if (!row) continue;
 
-      for (let cx = cellRect.x; cx <= cxEnd; cx++) {
-        const cell = row[cx];
+        for (let cx = cx1; cx <= cxEnd; cx++) {
+          const cell = row[cx];
 
-        if (!cell) continue;
+          if (!cell) continue;
 
-        for (const itemID of cell.items) {
-          if (visited !== null) {
-            if (visited.has(itemID)) continue;
+          const cellItems = cell.items;
 
-            visited.add(itemID);
+          for (let k = 0; k < cellItems.length; k++) {
+            const handle = cellItems[k];
+
+            if (dedupe) {
+              if (marks[handle] === epoch) continue;
+
+              marks[handle] = epoch;
+            }
+
+            if ((categories[handle] & layerMask) === 0) continue;
+
+            const itemID = names[handle]!;
+
+            if (fn !== null && !fn(itemID)) continue;
+
+            const b = handle << 2;
+            const ox = boxes[b];
+            const oy = boxes[b + 1];
+
+            if (
+              x < ox + boxes[b + 2] &&
+              ox < x + w &&
+              y < oy + boxes[b + 3] &&
+              oy < y + h
+            )
+              items.push(itemID);
           }
-
-          if (filter && !filter(itemID)) continue;
-
-          // getRect (not rects.get) so a stale cell entry still throws, as before.
-          if (rect_isIntersecting(x, y, w, h, this.getRect(itemID)))
-            items.push(itemID);
         }
       }
+    } finally {
+      this.endVisit();
     }
 
     return items;
   }
 
-  queryPoint(
-    x: number,
-    y: number,
-    filter?: (other?: string) => boolean
-  ): string[] {
-    // toCell() inlined: it returns a tuple, and this is the cheapest query in
-    // the API, so the array was a large fraction of its cost.
+  queryPoint(x: number, y: number, filter?: QueryFilter): string[] {
     const cellSize = this.cellSize;
     const cx: number = Math.floor(x / cellSize) + 1;
     const cy: number = Math.floor(y / cellSize) + 1;
@@ -511,15 +634,148 @@ export class World {
 
     if (!cell) return items;
 
-    // Iterating cell.items directly, instead of copying it to an array first.
-    for (const itemID of cell.items)
+    const fn = typeof filter === 'function' ? filter : null;
+    const layerMask = typeof filter === 'number' ? filter : DEFAULT_MASK;
+
+    const cellItems = cell.items;
+    const boxes = this.boxes;
+    const categories = this.categories;
+    const names = this.names;
+
+    for (let k = 0; k < cellItems.length; k++) {
+      const handle = cellItems[k];
+
+      if ((categories[handle] & layerMask) === 0) continue;
+
+      const itemID = names[handle]!;
+
+      if (fn !== null && !fn(itemID)) continue;
+
+      const b = handle << 2;
+      const rx = boxes[b];
+      const ry = boxes[b + 1];
+
+      // rect_containsPoint, inlined.
       if (
-        (!filter || filter(itemID)) &&
-        rect_containsPoint(this.getRect(itemID), x, y)
+        x - rx > DELTA &&
+        y - ry > DELTA &&
+        rx + boxes[b + 2] - x > DELTA &&
+        ry + boxes[b + 3] - y > DELTA
       )
         items.push(itemID);
+    }
 
     return items;
+  }
+
+  /*
+   * Walks the cells a segment crosses and collects the items it actually
+   * intersects, in one pass. A cell the traversal reaches twice is rescanned,
+   * but its items are already marked, so it costs a few integer compares.
+   */
+  private itemsTouchedBySegment(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    filter?: QueryFilter
+  ): IItemInfo[] {
+    const itemInfo: IItemInfo[] = [];
+    const seg = segScratchSegment;
+    const rows = this.rows;
+    const boxes = this.boxes;
+    const categories = this.categories;
+    const names = this.names;
+
+    const fn = typeof filter === 'function' ? filter : null;
+    const layerMask = typeof filter === 'number' ? filter : DEFAULT_MASK;
+
+    const marks = this.beginVisit();
+    const epoch = this.currentEpoch();
+
+    try {
+      grid_traverse(
+        this.cellSize,
+        x1,
+        y1,
+        x2,
+        y2,
+        function (cx: number, cy: number) {
+          const row: Cell[] = rows[cy];
+
+          if (!row) return;
+
+          const cell = row[cx];
+
+          if (!cell) return;
+
+          const cellItems = cell.items;
+
+          for (let k = 0; k < cellItems.length; k++) {
+            const handle = cellItems[k];
+
+            if (marks[handle] === epoch) continue;
+
+            marks[handle] = epoch;
+
+            if ((categories[handle] & layerMask) === 0) continue;
+
+            const itemID = names[handle]!;
+
+            if (fn !== null && !fn(itemID)) continue;
+
+            const b = handle << 2;
+            const rx = boxes[b];
+            const ry = boxes[b + 1];
+            const rw = boxes[b + 2];
+            const rh = boxes[b + 3];
+
+            if (!segmentIntersection(seg, rx, ry, rw, rh, x1, y1, x2, y2, 0, 1))
+              continue;
+
+            const ti1 = seg[0];
+            const ti2 = seg[1];
+
+            if (
+              !isNaN(ti1) &&
+              ((0 < ti1 && ti1 < 1) || (0 < ti2 && ti2 < 1))
+            ) {
+              // The sorting is according to the t of an infinite line, not
+              // the segment.
+              if (
+                !segmentIntersection(
+                  seg,
+                  rx,
+                  ry,
+                  rw,
+                  rh,
+                  x1,
+                  y1,
+                  x2,
+                  y2,
+                  -Number.MAX_SAFE_INTEGER,
+                  Number.MAX_SAFE_INTEGER
+                )
+              )
+                continue;
+
+              itemInfo.push({
+                item: itemID,
+                ti1,
+                ti2,
+                weight: Math.min(seg[0] || 0, seg[1] || 0),
+              });
+            }
+          }
+        }
+      );
+    } finally {
+      this.endVisit();
+    }
+
+    if (itemInfo.length > 1) itemInfo.sort(sortByWeight);
+
+    return itemInfo;
   }
 
   querySegment(
@@ -527,21 +783,13 @@ export class World {
     y1: number,
     x2: number,
     y2: number,
-    filter?: (other?: string) => boolean
+    filter?: QueryFilter
   ): string[] {
-    const itemsInfo = getInfoAboutItemsTouchedBySegment(
-      this,
-      x1,
-      y1,
-      x2,
-      y2,
-      filter
-    );
+    const itemsInfo = this.itemsTouchedBySegment(x1, y1, x2, y2, filter);
 
     const items: string[] = [];
 
-    if (itemsInfo)
-      for (let i = 0; i < itemsInfo.length; i++) items.push(itemsInfo[i].item);
+    for (let i = 0; i < itemsInfo.length; i++) items.push(itemsInfo[i].item);
 
     return items;
   }
@@ -551,7 +799,7 @@ export class World {
     y1: number,
     x2: number,
     y2: number,
-    filter?: (other?: string) => boolean
+    filter?: QueryFilter
   ): {
     item: string;
     ti1: number;
@@ -562,8 +810,7 @@ export class World {
     y1: number;
     y2: number;
   }[] {
-    let itemInfo: any = getInfoAboutItemsTouchedBySegment(
-      this,
+    const itemInfo: any[] = this.itemsTouchedBySegment(
       x1,
       y1,
       x2,
@@ -571,18 +818,12 @@ export class World {
       filter
     );
 
-    let dx: number = x2 - x1;
-    let dy: number = y2 - y1;
+    const dx: number = x2 - x1;
+    const dy: number = y2 - y1;
 
-    let info: any;
-    let ti1: number;
-    let ti2: number;
-
-    for (const item of itemInfo) {
-      info = item;
-
-      ti1 = info.ti1;
-      ti2 = info.ti2;
+    for (const info of itemInfo) {
+      const ti1: number = info.ti1;
+      const ti2: number = info.ti2;
 
       info.weight = null;
       info.x1 = x1 + dx * ti1;
@@ -599,43 +840,67 @@ export class World {
     x: number,
     y: number,
     w: number,
-    h: number
+    h: number,
+    layers?: ILayers
   ): string {
-    const rect: IRect | undefined = this.rects.get(itemID);
-
-    if (rect) throw new Error(`Item "${itemID}" added to the world twice.`);
+    if (this.handles.has(itemID))
+      throw new Error(`Item "${itemID}" added to the world twice.`);
 
     assertIsRect(x, y, w, h);
 
-    const rectToAdd = { x, y, w, h };
+    let handle: number;
 
-    this.rects.set(itemID, rectToAdd);
+    if (this.freeHandles.length > 0) handle = this.freeHandles.pop()!;
+    else {
+      handle = this.nextHandle++;
 
-    const cellRect = grid_toCellRect(this.cellSize, rectToAdd);
+      if (handle >= this.capacity) this.grow();
+    }
 
-    const cyEnd: number = cellRect.y + cellRect.h;
-    const cxEnd: number = cellRect.x + cellRect.w;
+    this.handles.set(itemID, handle);
+    this.names[handle] = itemID;
 
-    for (let cy = cellRect.y; cy < cyEnd; cy++)
-      for (let cx = cellRect.x; cx < cxEnd; cx++)
-        this.addItemToCell(itemID, cx, cy);
+    const b = handle << 2;
+    this.boxes[b] = x;
+    this.boxes[b + 1] = y;
+    this.boxes[b + 2] = w;
+    this.boxes[b + 3] = h;
+
+    this.categories[handle] = layers?.category ?? DEFAULT_CATEGORY;
+    this.masks[handle] = layers?.mask ?? DEFAULT_MASK;
+
+    const cellSize = this.cellSize;
+
+    this.addToCells(
+      handle,
+      Math.floor(x / cellSize) + 1,
+      Math.floor(y / cellSize) + 1,
+      Math.ceil((x + w) / cellSize),
+      Math.ceil((y + h) / cellSize)
+    );
 
     return itemID;
   }
 
   remove(itemID: string): void {
-    // The cell rect is derived before the rect is dropped, so there is no need
-    // to copy the rect first.
-    const cellRect = grid_toCellRect(this.cellSize, this.getRect(itemID));
+    const handle = this.handleOf(itemID);
+    const b = handle << 2;
+    const boxes = this.boxes;
+    const x = boxes[b];
+    const y = boxes[b + 1];
+    const cellSize = this.cellSize;
 
-    this.rects.delete(itemID);
+    this.removeFromCells(
+      handle,
+      Math.floor(x / cellSize) + 1,
+      Math.floor(y / cellSize) + 1,
+      Math.ceil((x + boxes[b + 2]) / cellSize),
+      Math.ceil((y + boxes[b + 3]) / cellSize)
+    );
 
-    const cyEnd: number = cellRect.y + cellRect.h;
-    const cxEnd: number = cellRect.x + cellRect.w;
-
-    for (let cy = cellRect.y; cy < cyEnd; cy++)
-      for (let cx = cellRect.x; cx < cxEnd; cx++)
-        this.removeItemFromCell(itemID, cx, cy);
+    this.handles.delete(itemID);
+    this.names[handle] = undefined;
+    this.freeHandles.push(handle);
   }
 
   update(
@@ -645,64 +910,70 @@ export class World {
     w2?: number,
     h2?: number
   ): void {
-    let itemRect = this.getRect(itemID);
+    const handle = this.handleOf(itemID);
+    const boxes = this.boxes;
+    const b = handle << 2;
+
+    const x1 = boxes[b];
+    const y1 = boxes[b + 1];
+    const w1 = boxes[b + 2];
+    const h1 = boxes[b + 3];
 
     // `w2 === undefined` first: the omitted-argument case is by far the common
     // one, and it avoids isNaN's ToNumber coercion. Explicit NaN still falls
     // back, as before.
-    w2 = w2 === undefined || isNaN(w2) ? itemRect.w : w2;
-    h2 = h2 === undefined || isNaN(h2) ? itemRect.h : h2;
+    w2 = w2 === undefined || isNaN(w2) ? w1 : w2;
+    h2 = h2 === undefined || isNaN(h2) ? h1 : h2;
 
-    assertIsRect(x2, y2, w2!, h2!);
+    assertIsRect(x2, y2, w2, h2);
 
-    if (
-      itemRect.x != x2 ||
-      itemRect.y != y2 ||
-      itemRect.w != w2 ||
-      itemRect.h != h2
-    ) {
-      const cellRect1 = grid_toCellRect(this.cellSize, itemRect);
+    if (x1 == x2 && y1 == y2 && w1 == w2 && h1 == h2) return;
 
-      const cellRect2 = grid_toCellRect(this.cellSize, {
-        x: x2,
-        y: y2,
-        w: w2!,
-        h: h2!,
-      });
+    const cellSize = this.cellSize;
 
-      if (
-        cellRect1.x != cellRect2.x ||
-        cellRect1.y != cellRect2.y ||
-        cellRect1.w != cellRect2.w ||
-        cellRect1.h != cellRect2.h
-      ) {
-        const cr1: number = cellRect1.x + cellRect1.w - 1;
-        const cb1: number = cellRect1.y + cellRect1.h - 1;
+    // Old and new cell ranges, inclusive.
+    const cl1 = Math.floor(x1 / cellSize) + 1;
+    const ct1 = Math.floor(y1 / cellSize) + 1;
+    const cr1 = Math.ceil((x1 + w1) / cellSize);
+    const cb1 = Math.ceil((y1 + h1) / cellSize);
 
-        const cr2: number = cellRect2.x + cellRect2.w - 1;
-        const cb2: number = cellRect2.y + cellRect2.h - 1;
+    const cl2 = Math.floor(x2 / cellSize) + 1;
+    const ct2 = Math.floor(y2 / cellSize) + 1;
+    const cr2 = Math.ceil((x2 + w2) / cellSize);
+    const cb2 = Math.ceil((y2 + h2) / cellSize);
 
-        let cyOut: boolean;
+    if (cl1 != cl2 || ct1 != ct2 || cr1 != cr2 || cb1 != cb2) {
+      const rows = this.rows;
+      let cyOut: boolean;
 
-        for (let cy = cellRect1.y; cy <= cb1; cy++) {
-          cyOut = cy < cellRect2.y || cy > cb2;
+      for (let cy = ct1; cy <= cb1; cy++) {
+        cyOut = cy < ct2 || cy > cb2;
 
-          for (let cx = cellRect1.x; cx <= cr1; cx++)
-            if (cyOut || cx < cellRect2.x || cx > cr2)
-              this.removeItemFromCell(itemID, cx, cy);
-        }
+        const row = rows[cy];
 
-        for (let cy = cellRect2.y; cy <= cb2; cy++) {
-          cyOut = cy < cellRect1.y || cy > cb1;
+        if (!row) continue;
 
-          for (let cx = cellRect2.x; cx <= cr2; cx++)
-            if (cyOut || cx < cellRect1.x || cx > cr1)
-              this.addItemToCell(itemID, cx, cy);
-        }
+        for (let cx = cl1; cx <= cr1; cx++)
+          if (cyOut || cx < cl2 || cx > cr2) {
+            const cell = row[cx];
+
+            if (cell) removeFromCell(cell.items, handle);
+          }
       }
 
-      this.rects.set(itemID, { x: x2, y: y2, w: w2!, h: h2! });
+      for (let cy = ct2; cy <= cb2; cy++) {
+        cyOut = cy < ct1 || cy > cb1;
+
+        for (let cx = cl2; cx <= cr2; cx++)
+          if (cyOut || cx < cl1 || cx > cr1)
+            this.addToCells(handle, cx, cy, cx, cy);
+      }
     }
+
+    boxes[b] = x2;
+    boxes[b + 1] = y2;
+    boxes[b + 2] = w2;
+    boxes[b + 3] = h2;
   }
 
   public move(
@@ -725,18 +996,24 @@ export class World {
     filter?: Filter
   ): ReturnType<Response> {
     const checkFilter: Filter = filter || defaultFilter;
-
-    // A Set rather than a Record: these keys are arbitrary user strings, which
-    // push a plain object into dictionary mode.
-    const visited: Set<string> = new Set();
-    visited.add(itemID);
-
-    const visitedFilter = (item: string, other: string) =>
-      visited.has(other) ? false : checkFilter(item, other);
-
-    let detectedCollisions: Collision[] = [];
+    const handles = this.handles;
 
     const itemRect: IRect = this.getRect(itemID);
+
+    // Handles already resolved in this check, starting with the item itself.
+    const excluded: number[] = [handles.get(itemID)!];
+
+    // Custom responses may call this directly; `project` instead reads the
+    // attached state and skips both the closure and the ID lookups.
+    const visitedFilter = (item: string, other: string) =>
+      excluded.includes(handles.get(other)!) ? false : checkFilter(item, other);
+
+    (visitedFilter as any)[CHECK_STATE] = {
+      excluded,
+      filter: checkFilter,
+    } as ICheckState;
+
+    const detectedCollisions: Collision[] = [];
 
     let projectedCollisions: Collision[] = this.project(
       itemID,
@@ -753,9 +1030,9 @@ export class World {
 
       detectedCollisions.push(collision);
 
-      visited.add(collision.other);
+      excluded.push(handles.get(collision.other)!);
 
-      let response = this.getResponseByName(collision.type!);
+      const response = this.getResponseByName(collision.type!);
 
       const { x, y, collisions } = response(
         this,

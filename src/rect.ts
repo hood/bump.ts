@@ -24,7 +24,7 @@ export function rect_getNearestCorner(
  * `out` layout: [ti1, ti2, nx1, ny1, nx2, ny2]. Returns false when the segment
  * never touches the rect, in which case `out` is left untouched.
  */
-function segmentIntersection(
+export function segmentIntersection(
   out: Float64Array,
   rx: number,
   ry: number,
@@ -285,6 +285,33 @@ export function rect_detectCollision(
   goalX?: number,
   goalY?: number
 ): undefined | Partial<Collision> {
+  return detectCollision(
+    rect,
+    otherRect.x,
+    otherRect.y,
+    otherRect.w,
+    otherRect.h,
+    otherRect,
+    goalX,
+    goalY
+  );
+}
+
+/*
+ * Core of `rect_detectCollision` with the other rect passed as scalars, so the
+ * world can test candidates straight out of its typed-array storage. The
+ * `otherRect` object is only materialised on a hit, when `otherRect` is null.
+ */
+export function detectCollision(
+  rect: IRect,
+  ox: number,
+  oy: number,
+  ow: number,
+  oh: number,
+  otherRect: IRect | null,
+  goalX?: number,
+  goalY?: number
+): undefined | Partial<Collision> {
   const rx = rect.x;
   const ry = rect.y;
   const rw = rect.w;
@@ -295,10 +322,10 @@ export function rect_detectCollision(
 
   // Minkowsky difference, kept as scalars: allocating a rect here cost one
   // object per candidate, and most candidates miss.
-  const dfx: number = otherRect.x - rx - rw;
-  const dfy: number = otherRect.y - ry - rh;
-  const dfw: number = rw + otherRect.w;
-  const dfh: number = rh + otherRect.h;
+  const dfx: number = ox - rx - rw;
+  const dfy: number = oy - ry - rh;
+  const dfw: number = rw + ow;
+  const dfh: number = rh + oh;
 
   const o = segScratchDetect;
 
@@ -413,6 +440,6 @@ export function rect_detectCollision(
     normal: { x: nx as number, y: ny as number },
     touch: { x: tx!, y: ty! },
     itemRect: rect,
-    otherRect,
+    otherRect: otherRect ?? { x: ox, y: oy, w: ow, h: oh },
   };
 }
