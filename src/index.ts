@@ -359,6 +359,16 @@ export class World {
     const cxEnd: number = Math.ceil((tl + (tr - tl)) / cellSize);
     const cyEnd: number = Math.ceil((tt + (tb - tt)) / cellSize);
 
+    // Swept box, padded so rounding in detectCollision (and its DELTA
+    // tolerance for touches at t slightly below 0) can never fall outside it.
+    const pad =
+      1e-7 *
+      (1 + Math.max(Math.abs(tl), Math.abs(tr), Math.abs(tt), Math.abs(tb)));
+    const sl = tl - pad;
+    const sr = tr + pad;
+    const st = tt - pad;
+    const sb = tb + pad;
+
     const rows = this.rows;
     const boxes = this.boxes;
     const categories = this.categories;
@@ -405,13 +415,21 @@ export class World {
             if (responseName === false) continue;
 
             const b = other << 2;
+            const ox = boxes[b];
+            const oy = boxes[b + 1];
+            const ow = boxes[b + 2];
+            const oh = boxes[b + 3];
+
+            // Swept-box reject: `other` is clear of everything the item covers
+            // on its way to the goal, so detectCollision would miss too.
+            if (ox > sr || ox + ow < sl || oy > sb || oy + oh < st) continue;
 
             const collision: Partial<Collision> | undefined = detectCollision(
               rect,
-              boxes[b],
-              boxes[b + 1],
-              boxes[b + 2],
-              boxes[b + 3],
+              ox,
+              oy,
+              ow,
+              oh,
               null,
               _goalX,
               _goalY
