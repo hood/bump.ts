@@ -1,5 +1,5 @@
-import assertIsPositiveNumber from './assertIsPositiveNumber';
-import assertType from './assertType';
+import assertIsPositiveNumber from './assertIsPositiveNumber.js';
+import assertType from './assertType.js';
 
 export default function assertIsRect(
   x: number,

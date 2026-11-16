@@ -1,6 +1,6 @@
-import { Collision, ICoords, IRect } from '.';
-import { DELTA } from './constants';
-import nearest from './helpers/generic/nearest';
+import { Collision, ICoords, IRect } from './index.js';
+import { DELTA } from './constants.js';
+import nearest from './helpers/generic/nearest.js';
 
 export function rect_getNearestCorner(
   rect: IRect,

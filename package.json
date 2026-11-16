@@ -21,8 +21,8 @@
   },
   "scripts": {
     "start": "tsc -p tsconfig.build.json --module commonjs --outDir dist --watch",
-    "build": "tsc -p tsconfig.build.json --module commonjs --outDir dist && tsc -p tsconfig.build.json --module esnext --declaration false --outDir dist/esm",
-    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json --module commonjs --outDir dist && tsc -p tsconfig.build.json --module esnext --outDir dist/esm && node scripts/mark-esm.cjs",
+    "test": "vitest run && pnpm test:package",
     "test:watch": "vitest",
     "lint": "oxlint src test",
     "format": "oxfmt --write src test",
@@ -32,7 +32,8 @@
     "size": "size-limit",
     "analyze": "size-limit --why",
     "benchmark": "ts-node -T --project benchmarks/tsconfig.json benchmarks/update.bench.js",
-    "benchmark:track": "pnpm benchmark > benchmarks/benchmarks.md"
+    "benchmark:track": "pnpm benchmark > benchmarks/benchmarks.md",
+    "test:package": "pnpm build && node --test scripts/test-package.cjs"
   },
   "husky": {
     "hooks": {
@@ -69,5 +70,18 @@
     "tslib": "2.8.1",
     "typescript": "5.9.3",
     "vitest": "^4.1.10"
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "./*": "./*"
   }
 }

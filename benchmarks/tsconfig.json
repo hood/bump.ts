@@ -6,5 +6,8 @@
     "module": "commonjs",
     "noEmit": false
   },
+  "ts-node": {
+    "experimentalResolver": true
+  },
   "include": ["../src"]
 }

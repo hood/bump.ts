@@ -1,5 +1,5 @@
-import { IRect } from '../..';
-import { rect_getSquareDistance } from '../../rect';
+import { IRect } from '../../index.js';
+import { rect_getSquareDistance } from '../../rect.js';
 
 interface Item {
   // x: number;
