@@ -1,4 +1,4 @@
-import { IRect } from '.';
+import { IRect } from './index.js';
 
 export function grid_toWorld(
   cellSize: number,

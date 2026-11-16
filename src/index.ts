@@ -1,4 +1,4 @@
-import assertIsPositiveNumber from './helpers/generic/assertIsPositiveNumber';
+import assertIsPositiveNumber from './helpers/generic/assertIsPositiveNumber.js';
 import {
   detectCollision,
   rect_containsPoint,
@@ -10,18 +10,18 @@ import {
   rect_isIntersecting,
   segmentIntersection,
   segScratchSegment,
-} from './rect';
-import { grid_toCell, grid_toWorld, grid_traverse } from './grid';
-import assertIsRect from './helpers/generic/assertIsRect';
-import { DELTA } from './constants';
+} from './rect.js';
+import { grid_toCell, grid_toWorld, grid_traverse } from './grid.js';
+import assertIsRect from './helpers/generic/assertIsRect.js';
+import { DELTA } from './constants.js';
 import {
   bounce,
   cross,
   Response,
   slide,
   touch,
-} from './helpers/world/responses';
-import sortByTiAndDistance from './helpers/world/sortByTiAndDistance';
+} from './helpers/world/responses.js';
+import sortByTiAndDistance from './helpers/world/sortByTiAndDistance.js';
 
 function defaultFilter(): 'slide' {
   return 'slide';
@@ -1111,5 +1111,7 @@ const bump = {
     bounce,
   },
 };
+
+export const { newWorld, rect, responses } = bump;
 
 export default Object.freeze(bump);

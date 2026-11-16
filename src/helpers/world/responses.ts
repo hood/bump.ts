@@ -1,4 +1,4 @@
-import { Collision, ICoords, IRect, World } from '../../index';
+import { Collision, ICoords, IRect, World } from '../../index.js';
 
 export type Response = (
   world: World,
